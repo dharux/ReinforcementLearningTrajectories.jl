@@ -3,6 +3,16 @@ using Random
 abstract type AbstractSampler end
 
 #####
+# DummySampler
+#####
+
+export DummySampler
+
+struct DummySampler end
+
+sample(s::DummySampler, t::AbstractTraces) = t
+
+#####
 # BatchSampler
 #####
 

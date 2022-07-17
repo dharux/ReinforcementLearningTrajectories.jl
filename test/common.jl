@@ -91,6 +91,26 @@ end
     @test batch.terminal == Bool[0, 0, 0]
 end
 
+@testset "ElasticArraySARTTraces" begin
+    t = ElasticArraySARTTraces(;
+        state=Float32 => (2, 3),
+        action=Int => (),
+        reward=Float32 => (),
+        terminal=Bool => ()
+    )
+
+    @test t isa ElasticArraySARTTraces
+
+    push!(t, (state=ones(Float32, 2, 3), action=1))
+    push!(t, (reward=1.0f0, terminal=false, state=ones(Float32, 2, 3) * 2, action=2))
+
+    @test length(t) == 1
+
+    empty!(t)
+
+    @test length(t) == 0
+end
+
 @testset "CircularArraySLARTTraces" begin
     t = CircularArraySLARTTraces(;
         capacity=3,

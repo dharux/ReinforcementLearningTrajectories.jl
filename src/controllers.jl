@@ -24,9 +24,10 @@ function on_sample!(c::InsertSampleRatioController)
     if c.n_inserted >= c.threshold
         if c.n_sampled <= (c.n_inserted - c.threshold) * c.ratio
             c.n_sampled += 1
-            true
+            return true
         end
     end
+    return false
 end
 
 #####
