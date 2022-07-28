@@ -5,7 +5,8 @@ export InsertSampleRatioController, AsyncInsertSampleRatioController
 
 Used in [`Trajectory`](@ref). The `threshold` means the minimal number of
 insertings before sampling. The `ratio` balances the number of insertings and
-the number of samplings.
+the number of samplings. For example a ratio of 1/10 will sample once every 10 
+insertings in the trajectory.
 """
 Base.@kwdef mutable struct InsertSampleRatioController
     ratio::Float64 = 1.0
