@@ -45,7 +45,7 @@ end
     @test length(t) == 1
 
     # this will trigger the scalar indexing of CuArray
-    @test_broken t[1] == (
+    CUDA.@allowscalar @test t[1] == (
         state=ones(Float32, 2, 3),
         next_state=ones(Float32, 2, 3) * 2,
         action=ones(Float32, 2),
@@ -70,7 +70,7 @@ end
     @test length(t) == 3
 
     # this will trigger the scalar indexing of CuArray
-    @test_broken t[1] == (
+    CUDA.@allowscalar @test t[1] == (
         state=ones(Float32, 2, 3) * 2,
         next_state=ones(Float32, 2, 3) * 3,
         action=ones(Float32, 2) * 2,
@@ -78,7 +78,7 @@ end
         reward=2.0f0,
         terminal=false,
     )
-    @test_broken t[end] == (
+    CUDA.@allowscalar @test t[end] == (
         state=ones(Float32, 2, 3) * 4,
         next_state=ones(Float32, 2, 3) * 5,
         action=ones(Float32, 2) * 4,
