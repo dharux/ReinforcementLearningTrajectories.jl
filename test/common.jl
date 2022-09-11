@@ -31,20 +31,21 @@ end
         action=Float32 => (2,),
         reward=Float32 => (),
         terminal=Bool => ()
-    )
+    ) |> gpu
 
     @test t isa CircularArraySARTTraces
 
-    push!(t, (state=ones(Float32, 2, 3), action=ones(Float32, 2)))
+    push!(t, (state=ones(Float32, 2, 3), action=ones(Float32, 2)) |> gpu)
     @test length(t) == 0
 
-    push!(t, (reward=1.0f0, terminal=false))
+    push!(t, (reward=1.0f0, terminal=false) |> gpu)
     @test length(t) == 0 # next_state and next_action is still missing
 
-    push!(t, (next_state=ones(Float32, 2, 3) * 2, next_action=ones(Float32, 2) * 2))
+    push!(t, (next_state=ones(Float32, 2, 3) * 2, next_action=ones(Float32, 2) * 2) |> gpu)
     @test length(t) == 1
 
-    @test t[1] == (
+    # this will trigger the scalar indexing of CuArray
+    @test_broken t[1] == (
         state=ones(Float32, 2, 3),
         next_state=ones(Float32, 2, 3) * 2,
         action=ones(Float32, 2),
@@ -54,20 +55,22 @@ end
     )
 
     push!(t, (reward=2.0f0, terminal=false))
-    push!(t, (state=ones(Float32, 2, 3) * 3, action=ones(Float32, 2) * 3))
+    push!(t, (state=ones(Float32, 2, 3) * 3, action=ones(Float32, 2) * 3) |> gpu)
 
     @test length(t) == 2
 
     push!(t, (reward=3.0f0, terminal=false))
-    push!(t, (state=ones(Float32, 2, 3) * 4, action=ones(Float32, 2) * 4))
+    push!(t, (state=ones(Float32, 2, 3) * 4, action=ones(Float32, 2) * 4) |> gpu)
 
     @test length(t) == 3
 
     push!(t, (reward=4.0f0, terminal=false))
-    push!(t, (state=ones(Float32, 2, 3) * 5, action=ones(Float32, 2) * 5))
+    push!(t, (state=ones(Float32, 2, 3) * 5, action=ones(Float32, 2) * 5) |> gpu)
 
     @test length(t) == 3
-    @test t[1] == (
+
+    # this will trigger the scalar indexing of CuArray
+    @test_broken t[1] == (
         state=ones(Float32, 2, 3) * 2,
         next_state=ones(Float32, 2, 3) * 3,
         action=ones(Float32, 2) * 2,
@@ -75,7 +78,7 @@ end
         reward=2.0f0,
         terminal=false,
     )
-    @test t[end] == (
+    @test_broken t[end] == (
         state=ones(Float32, 2, 3) * 4,
         next_state=ones(Float32, 2, 3) * 5,
         action=ones(Float32, 2) * 4,
@@ -87,8 +90,8 @@ end
     batch = t[1:3]
     @test size(batch.state) == (2, 3, 3)
     @test size(batch.action) == (2, 3)
-    @test batch.reward == [2.0, 3.0, 4.0]
-    @test batch.terminal == Bool[0, 0, 0]
+    @test batch.reward == [2.0, 3.0, 4.0] |> gpu
+    @test batch.terminal == Bool[0, 0, 0] |> gpu
 end
 
 @testset "ElasticArraySARTTraces" begin
