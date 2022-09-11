@@ -3,6 +3,7 @@ uuid = "6486599b-a3cd-4e92-a99a-2cea90cc8c3c"
 version = "0.1.5"
 
 [deps]
+Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
 CircularArrayBuffers = "9de3a189-e0c0-4e15-ba3b-b14b9fb0aec1"
 ElasticArrays = "fdbdab4c-e67f-52f5-8c3f-e7b388dad3d4"
 MacroTools = "1914dd2f-81c6-5fcd-8719-6d5c9610ff09"
@@ -14,12 +15,13 @@ StackViews = "cae243ae-269e-4f55-b966-ac2d0dc13c15"
 CircularArrayBuffers = "0.1"
 ElasticArrays = "1"
 MacroTools = "0.5"
+OnlineStats = "1"
 StackViews = "0.1"
 julia = "1.6"
-OnlineStats = "1"
 
 [extras]
+CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test"]
+test = ["Test", "CUDA"]

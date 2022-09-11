@@ -3,6 +3,7 @@ export Trace, Traces, MultiplexTraces, Episode, Episodes
 import MacroTools: @forward
 
 import CircularArrayBuffers
+import Adapt
 
 #####
 
@@ -13,11 +14,23 @@ Base.convert(::Type{AbstractTrace}, x::AbstractTrace) = x
 Base.summary(io::IO, t::AbstractTrace) = print(io, "$(length(t))-element $(nameof(typeof(t)))")
 
 #####
+
+"""
+    Trace(A::AbstractArray)
+
+Similar to
+[`Slices`](https://github.com/JuliaLang/julia/blob/master/base/slicearray.jl)
+which will be introduced in `Julia@v1.9`. The main difference is that, the
+`axes` info in the `Slices` is static, while it may be dynamic with `Trace`.
+
+We only support slices along the last dimension since it's the most common usage
+in RL.
+"""
 struct Trace{T,E} <: AbstractTrace{E}
     parent::T
 end
 
-Base.summary(io::IO, t::Trace{T}) where {T} = print(io, "$(length(t))-element $(nameof(typeof(t))){$T}")
+Base.summary(io::IO, t::Trace{T}) where {T} = print(io, "$(length(t))-element$(length(t) > 0 ? 's' : "") $(nameof(typeof(t))){$T}")
 
 function Trace(x::T) where {T<:AbstractArray}
     E = eltype(x)
@@ -26,6 +39,8 @@ function Trace(x::T) where {T<:AbstractArray}
     I = Tuple{ntuple(_ -> Base.Slice{Base.OneTo{Int}}, Val(ndims(x) - 1))...,Int}
     Trace{T,SubArray{E,N,P,I,true}}(x)
 end
+
+Adapt.adapt_structure(to, t::Trace) = Trace(Adapt.adapt_structure(to, t.parent))
 
 Base.convert(::Type{AbstractTrace}, x::AbstractArray) = Trace(x)
 
@@ -60,6 +75,21 @@ Base.haskey(t::AbstractTraces{names}, k::Symbol) where {names} = k in names
 #####
 
 """
+Dedicated for `MultiplexTraces` to avoid scalar indexing when `view(view(t::MultiplexTrace, 1:end-1), I)`.
+"""
+struct RelativeTrace{left,right,T,E} <: AbstractTrace{E}
+    trace::Trace{T,E}
+end
+RelativeTrace{left,right}(t::Trace{T,E}) where {left,right,T,E} = RelativeTrace{left,right,T,E}(t)
+
+Base.size(x::RelativeTrace{0,-1}) = (max(0, length(x.trace) - 1),)
+Base.size(x::RelativeTrace{1,0}) = (max(0, length(x.trace) - 1),)
+Base.getindex(s::RelativeTrace{0,-1}, I) = getindex(s.trace, I)
+Base.getindex(s::RelativeTrace{1,0}, I) = getindex(s.trace, I .+ 1)
+Base.setindex!(s::RelativeTrace{0,-1}, v, I) = setindex!(s.trace, v, I)
+Base.setindex!(s::RelativeTrace{1,0}, v, I) = setindex!(s.trace, v, I .+ 1)
+
+"""
     MultiplexTraces{names}(trace)
 
 A special [`AbstractTraces`](@ref) which has exactly two traces of the same
@@ -89,12 +119,14 @@ function MultiplexTraces{names}(t) where {names}
     MultiplexTraces{names,typeof(trace),eltype(trace)}(trace)
 end
 
+Adapt.adapt_structure(to, t::MultiplexTraces{names}) where {names} = MultiplexTraces{names}(Adapt.adapt_structure(to, t.trace))
+
 function Base.getindex(t::MultiplexTraces{names}, k::Symbol) where {names}
     a, b = names
     if k == a
-        convert(AbstractTrace, t.trace[1:end-1])
+        RelativeTrace{0,-1}(convert(AbstractTrace, t.trace))
     elseif k == b
-        convert(AbstractTrace, t.trace[2:end])
+        RelativeTrace{1,0}(convert(AbstractTrace, t.trace))
     else
         throw(ArgumentError("unknown trace name: $k"))
     end
@@ -132,6 +164,8 @@ struct Episode{T,names,E} <: AbstractTraces{names,E}
 end
 
 Episode(t::AbstractTraces{names,T}) where {names,T} = Episode{typeof(t),names,T}(t, Ref(false))
+
+Adapt.adapt_structure(to, t::Episode{T,names,E}) where {T,names,E} = Episode{T,names,E}(Adapt.adapt_structure(to, t.traces), t.is_terminated)
 
 @forward Episode.traces Base.getindex, Base.setindex!, Base.size
 
@@ -174,6 +208,11 @@ struct Episodes{names,E,T} <: AbstractTraces{names,E}
     episodes::Vector{T}
     inds::Vector{Tuple{Int,Int}}
 end
+
+Adapt.adapt_structure(to, t::Episodes) =
+    Episodes() do
+        Adapt.adapt_structure(to, t.init())
+    end
 
 function Episodes(init)
     x = init()
@@ -249,6 +288,11 @@ struct Traces{names,T,N,E} <: AbstractTraces{names,E}
     inds::NamedTuple{names,NTuple{N,Int}}
 end
 
+function Adapt.adapt_structure(to, t::Traces{names,T,N,E}) where {names,T,N,E}
+    data = Adapt.adapt_structure(to, t.traces)
+    # FIXME: `E` is not adapted here
+    Traces{names,typeof(data),length(names),E}(data, t.inds)
+end
 
 function Traces(; kw...)
     data = map(x -> convert(AbstractTrace, x), values(kw))
