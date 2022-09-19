@@ -69,14 +69,11 @@ function Base.bind(t::Trajectory{<:Any,<:Any,<:AsyncInsertSampleRatioController}
     bind(t.controler.ch_out, task)
 end
 
-# !!! by default we assume `x`  is a complete example which contains all the traces
-# When doing partial inserting, the result of undefined
-function Base.push!(t::Trajectory, x)
-    push!(t.container, x)
-    on_insert!(t.controller, 1)
-end
-
 Base.setindex!(t::Trajectory, v, I...) = setindex!(t.container, v, I...)
+
+#####
+# in
+#####
 
 struct CallMsg
     f::Any
@@ -93,32 +90,33 @@ function Base.append!(t::Trajectory, x)
     on_insert!(t.controller, length(x))
 end
 
-# !!! bypass the controller
-sample(t::Trajectory) = sample(t.sampler, t.container)
+# !!! by default we assume `x`  is a complete example which contains all the traces
+# When doing partial inserting, the result of undefined
+function Base.push!(t::Trajectory, x)
+    push!(t.container, x)
+    on_insert!(t)
+end
+
+on_insert!(t::Trajectory) = on_insert!(t, 1)
+on_insert!(t::Trajectory, n::Int) = on_insert!(t.controller, n)
+
+#####
+# out
+#####
+
+SampleGenerator(t::Trajectory) = SampleGenerator(t.sampler, t.container)
 
 on_sample!(t::Trajectory) = on_sample!(t.controller)
+sample(t::Trajectory) = sample(t.sampler, t.container)
 
-function Base.take!(t::Trajectory)
-    if on_sample!(t)
-        sample(t.sampler, t.container) |> t.transformer
-    else
-        nothing
-    end
-end
+"""
+Keep sampling batches from the trajectory until the trajectory is not ready to
+be sampled yet due to the `controller`.
+"""
+iter(t::Trajectory) = Iterators.takewhile(_ -> on_sample!(t), Iterators.cycle(SampleGenerator(t)))
 
-function Base.iterate(t::Trajectory)
-    x = take!(t)
-    if isnothing(x)
-        nothing
-    else
-        x, true
-    end
-end
-
-Base.iterate(t::Trajectory, state) = iterate(t)
+Base.iterate(t::Trajectory, args...) = iterate(iter(t), args...)
+Base.IteratorSize(t::Trajectory) = Base.IteratorSize(iter(t))
 
 Base.iterate(t::Trajectory{<:Any,<:Any,<:AsyncInsertSampleRatioController}, args...) = iterate(t.controller.ch_out, args...)
-Base.take!(t::Trajectory{<:Any,<:Any,<:AsyncInsertSampleRatioController}) = take!(t.controller.ch_out)
-
-Base.IteratorSize(::Trajectory{<:Any,<:Any,<:AsyncInsertSampleRatioController}) = Base.IsInfinite()
-Base.IteratorSize(::Trajectory) = Base.SizeUnknown()
+Base.IteratorSize(t::Trajectory{<:Any,<:Any,<:AsyncInsertSampleRatioController}) = Base.IteratorSize(t.controller.ch_out)

@@ -1,6 +1,12 @@
 using Random
 
-abstract type AbstractSampler end
+struct SampleGenerator{S,T}
+    sampler::S
+    traces::T
+end
+
+Base.iterate(s::SampleGenerator) = sample(s.sampler, s.traces), nothing
+Base.iterate(s::SampleGenerator, ::Nothing) = nothing
 
 #####
 # DummySampler
@@ -8,16 +14,20 @@ abstract type AbstractSampler end
 
 export DummySampler
 
+"""
+Just return the underlying traces.
+"""
 struct DummySampler end
 
-sample(s::DummySampler, t::AbstractTraces) = t
+sample(::DummySampler, t) = t
 
 #####
 # BatchSampler
 #####
 
 export BatchSampler
-struct BatchSampler{names} <: AbstractSampler
+
+struct BatchSampler{names}
     batch_size::Int
     rng::Random.AbstractRNG
 end
@@ -26,10 +36,8 @@ end
     BatchSampler{names}(;batch_size, rng=Random.GLOBAL_RNG)
     BatchSampler{names}(batch_size ;rng=Random.GLOBAL_RNG)
 
-Uniformly sample a batch of examples for each trace specified in `names`. 
-By default, all the traces will be sampled.
-
-See also [`sample`](@ref).
+Uniformly sample **ONE** batch of `batch_size` examples for each trace specified
+in `names`. If `names` is not set, all the traces will be sampled.
 """
 BatchSampler(batch_size; kw...) = BatchSampler(; batch_size=batch_size, kw...)
 BatchSampler(; kw...) = BatchSampler{nothing}(; kw...)
@@ -37,11 +45,20 @@ BatchSampler{names}(batch_size; kw...) where {names} = BatchSampler{names}(; bat
 BatchSampler{names}(; batch_size, rng=Random.GLOBAL_RNG) where {names} = BatchSampler{names}(batch_size, rng)
 
 sample(s::BatchSampler{nothing}, t::AbstractTraces) = sample(s, t, keys(t))
-sample(s::BatchSampler{names}, t::AbstractTraces) where {names} = sample(s, t, names)
+sample(s::BatchSampler{names}, t::AbstractTraces) where {names} = _sample(s, t, names)
 
 function sample(s::BatchSampler, t::AbstractTraces, names)
     inds = rand(s.rng, 1:length(t), s.batch_size)
     NamedTuple{names}(map(x -> t[x][inds], names))
+end
+
+# !!! avoid iterating an empty trajectory
+function Base.iterate(s::SampleGenerator{<:BatchSampler})
+    if length(s.traces) > 0
+        sample(s.sampler, s.traces), nothing
+    else
+        nothing
+    end
 end
 
 #####
@@ -75,7 +92,7 @@ initializing an agent.
 MetaSampler(policy = BatchSampler(10), critic = BatchSampler(100))
 ```
 """
-struct MetaSampler{names,T} <: AbstractSampler
+struct MetaSampler{names,T}
     samplers::NamedTuple{names,T}
 end
 
@@ -104,7 +121,7 @@ MetaSampler(policy = MultiBatchSampler(BatchSampler(10), 3),
             critic = MultiBatchSampler(BatchSampler(100), 5))
 ```
 """
-struct MultiBatchSampler{S<:AbstractSampler} <: AbstractSampler
+struct MultiBatchSampler{S}
     sampler::S
     n::Int
 end
