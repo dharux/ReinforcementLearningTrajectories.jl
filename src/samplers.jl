@@ -45,7 +45,7 @@ BatchSampler{names}(batch_size; kw...) where {names} = BatchSampler{names}(; bat
 BatchSampler{names}(; batch_size, rng=Random.GLOBAL_RNG) where {names} = BatchSampler{names}(batch_size, rng)
 
 sample(s::BatchSampler{nothing}, t::AbstractTraces) = sample(s, t, keys(t))
-sample(s::BatchSampler{names}, t::AbstractTraces) where {names} = _sample(s, t, names)
+sample(s::BatchSampler{names}, t::AbstractTraces) where {names} = sample(s, t, names)
 
 function sample(s::BatchSampler, t::AbstractTraces, names)
     inds = rand(s.rng, 1:length(t), s.batch_size)
