@@ -19,7 +19,7 @@ Just return the underlying traces.
 """
 struct DummySampler end
 
-(::DummySampler, t) = t
+sample(::DummySampler, t) = t
 
 #####
 # BatchSampler
