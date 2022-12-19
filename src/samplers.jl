@@ -178,7 +178,7 @@ end
 function sample(s::NStepBatchSampler, ts, ::Val{SS′L′ART}, inds)
     s, s′, a, r, t = sample(s, ts, Val(SSART), inds)
     l = consecutive_view(ts[:next_legal_actions_mask], inds)
-    NamedTuple{SSLART}((map(Matrix, (s, s′, l, a, r, t)))
+    NamedTuple{SSLART}(map(Matrix, (s, s′, l, a, r, t)))
 end
 
 function sample(s::NStepBatchSampler{names}, t::CircularPrioritizedTraces) where {names}
