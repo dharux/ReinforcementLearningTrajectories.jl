@@ -49,7 +49,7 @@ sample(s::BatchSampler{names}, t::AbstractTraces) where {names} = sample(s, t, n
 
 function sample(s::BatchSampler, t::AbstractTraces, names)
     inds = rand(s.rng, 1:length(t), s.batch_size)
-    NamedTuple{names}(map(x -> t[x][inds], names))
+    NamedTuple{names}(map(x -> collect(t[x][inds]), names))
 end
 
 # !!! avoid iterating an empty trajectory
@@ -67,7 +67,7 @@ sample(s::BatchSampler{nothing}, t::CircularPrioritizedTraces) = sample(s, t, ke
 
 function sample(s::BatchSampler, t::CircularPrioritizedTraces, names)
     inds, priorities = rand(s.rng, t.priorities, s.batch_size)
-    NamedTuple{(:key, :priority, names...)}((t.keys[inds], priorities, map(x -> t.traces[x][inds], names)...))
+    NamedTuple{(:key, :priority, names...)}((t.keys[inds], priorities, map(x -> collect(t.traces[x][inds]), names)...))
 end
 
 #####
@@ -172,13 +172,13 @@ function sample(nbs::NStepBatchSampler, ts, ::Val{SS′ART}, inds)
         foldr(((rr, tt), init) -> rr + nbs.γ * init * (1 - tt), zip(r⃗, t⃗); init=0.0f0)
     end
 
-    NamedTuple{SS′ART}((s, s′, a, r, t))
+    NamedTuple{SS′ART}(map(collect, (s, s′, a, r, t)))
 end
 
 function sample(s::NStepBatchSampler, ts, ::Val{SS′L′ART}, inds)
     s, s′, a, r, t = sample(s, ts, Val(SSART), inds)
     l = consecutive_view(ts[:next_legal_actions_mask], inds)
-    NamedTuple{SSLART}((s, s′, l, a, r, t))
+    NamedTuple{SSLART}(map(collect, (s, s′, l, a, r, t)))
 end
 
 function sample(s::NStepBatchSampler{names}, t::CircularPrioritizedTraces) where {names}
