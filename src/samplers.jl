@@ -100,6 +100,14 @@ MetaSampler(; kw...) = MetaSampler(NamedTuple(kw))
 
 sample(s::MetaSampler, t) = map(x -> sample(x, t), s.samplers)
 
+function Base.iterate(s::SampleGenerator{<:MetaSampler})
+    if length(s.traces) > 0
+        sample(s.sampler, s.traces), nothing
+    else
+        nothing
+    end
+end
+
 #####
 # MultiBatchSampler
 #####
@@ -127,6 +135,14 @@ struct MultiBatchSampler{S}
 end
 
 sample(m::MultiBatchSampler, t) = [sample(m.sampler, t) for _ in 1:m.n]
+
+function Base.iterate(s::SampleGenerator{<:MultiBatchSampler})
+    if length(s.traces) > 0
+        sample(s.sampler, s.traces), nothing
+    else
+        nothing
+    end
+end
 
 #####
 # NStepBatchSampler
