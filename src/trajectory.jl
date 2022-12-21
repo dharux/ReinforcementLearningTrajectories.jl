@@ -104,7 +104,7 @@ on_insert!(t::Trajectory, n::Int) = on_insert!(t.controller, n)
 # out
 #####
 
-SampleGenerator(t::Trajectory) = SampleGenerator(t.sampler, t.container)
+SampleGenerator(t::Trajectory) = SampleGenerator(t.sampler, t.container) #currently not in use
 
 on_sample!(t::Trajectory) = on_sample!(t.controller)
 sample(t::Trajectory) = sample(t.sampler, t.container)
@@ -115,7 +115,14 @@ be sampled yet due to the `controller`.
 """
 iter(t::Trajectory) = Iterators.takewhile(_ -> on_sample!(t), Iterators.cycle(SampleGenerator(t)))
 
-Base.iterate(t::Trajectory, args...) = iterate(iter(t), args...)
+#The use of iterate(::SampleGenerator) has been suspended in v0.1.8 due to a significant drop in performance. 
+function Base.iterate(t::Trajectory, args...)
+    if length(t.container) > 0 && on_sample!(t)
+        sample(t), nothing
+    else
+        nothing
+    end
+end 
 Base.IteratorSize(t::Trajectory) = Base.IteratorSize(iter(t))
 
 Base.iterate(t::Trajectory{<:Any,<:Any,<:AsyncInsertSampleRatioController}, args...) = iterate(t.controller.ch_out, args...)
