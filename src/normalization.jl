@@ -194,5 +194,5 @@ end
 function sample(s::BatchSampler, nt::NormalizedTraces, names)
     inds = rand(s.rng, 1:length(nt), s.batch_size)
     maybe_normalize(data, key) = key in keys(nt.normalizers) ? normalize(nt.normalizers[key], data) : data
-    NamedTuple{names}(maybe_normalize(nt[x][inds], x) for x in names)
+    NamedTuple{names}(collect(maybe_normalize(nt[x][inds], x)) for x in names)
 end
