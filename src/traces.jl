@@ -347,15 +347,27 @@ Base.size(t::Traces) = (mapreduce(length, min, t.traces),)
 for f in (:push!, :pushfirst!)
     @eval function Base.$f(ts::Traces, xs::NamedTuple)
         for (k, v) in pairs(xs)
-            t = ts.traces[ts.inds[k]]
-            if t isa AbstractTrace
-                $f(t, v)
-            else
-                $f(t, (; k => v))
-            end
+            $f(ts, Val(k), v)
         end
     end
+
+    @eval function Base.$f(ts::Traces{names,T}, ::Val{k}, v) where {names,T,k}
+        $f(ts.traces[ts.inds[k]], Val(k), v)
+    end
+
+    @eval function Base.$f(t::AbstractTrace, ::Val{k}, v) where {k}
+        $f(t, v)
+    end
+
+    @eval function Base.$f(t::Trace, ::Val{k}, v) where {k}
+        $f(t, v)
+    end
+
+    @eval function Base.$f(ts::MultiplexTraces, ::Val{k}, v) where {k}
+        $f(ts, (; k => v))
+    end
 end
+
 
 for f in (:append!, :prepend!)
     @eval function Base.$f(ts::Traces, xs::Traces)
