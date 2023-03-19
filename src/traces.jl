@@ -351,7 +351,7 @@ for f in (:push!, :pushfirst!)
         end
     end
 
-    @eval function Base.$f(ts::Traces{names,T}, ::Val{k}, v) where {names,T,k}
+    @eval function Base.$f(ts::Traces, ::Val{k}, v) where {k}
         $f(ts.traces[ts.inds[k]], Val(k), v)
     end
 
