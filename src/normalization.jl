@@ -183,9 +183,9 @@ end
 @forward NormalizedTraces.traces Base.length, Base.size, Base.lastindex, Base.firstindex, Base.getindex, Base.view, Base.pop!, Base.popfirst!, Base.empty!, Base.parent
 
 for f in (:push!, :pushfirst!, :append!, :prepend!)
-    @eval function Base.$f(nt::NormalizedTraces, x::T) where T
-        for key in intersect(keys(nt.normalizers), fieldnames(T))
-            fit!(nt.normalizers[key], getfield(x, key))
+    @eval function Base.$f(nt::NormalizedTraces, x::NamedTuple)
+        for key in intersect(keys(nt.normalizers), keys(x))
+            fit!(nt.normalizers[key], x[key])
         end
         $f(nt.traces, x)
     end
