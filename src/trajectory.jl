@@ -87,18 +87,18 @@ Base.setindex!(t::Trajectory{<:Any,<:Any,<:AsyncInsertSampleRatioController}, v,
 
 function Base.append!(t::Trajectory, x)
     append!(t.container, x)
-    on_insert!(t.controller, length(x))
+    on_insert!(t.controller, length(x), x)
 end
 
 # !!! by default we assume `x`  is a complete example which contains all the traces
 # When doing partial inserting, the result of undefined
 function Base.push!(t::Trajectory, x)
     push!(t.container, x)
-    on_insert!(t)
+    on_insert!(t, x)
 end
 
-on_insert!(t::Trajectory) = on_insert!(t, 1)
-on_insert!(t::Trajectory, n::Int) = on_insert!(t.controller, n)
+on_insert!(t::Trajectory, x) = on_insert!(t, 1, x)
+on_insert!(t::Trajectory, n::Int, x) = on_insert!(t.controller, n, x)
 
 #####
 # out
