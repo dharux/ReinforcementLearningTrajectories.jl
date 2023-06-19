@@ -87,7 +87,7 @@ Base.setindex!(t::Trajectory{<:Any,<:Any,<:AsyncInsertSampleRatioController}, v,
 
 function Base.append!(t::Trajectory, x)
     append!(t.container, x)
-    on_insert!(t.controller, length(first(x)), x)
+    on_insert!(t.controller, length(x), x)
 end
 
 # !!! by default we assume `x`  is a complete example which contains all the traces
