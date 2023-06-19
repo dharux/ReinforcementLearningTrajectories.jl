@@ -5,6 +5,7 @@ version = "0.1.10"
 [deps]
 Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
 CircularArrayBuffers = "9de3a189-e0c0-4e15-ba3b-b14b9fb0aec1"
+DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
 ElasticArrays = "fdbdab4c-e67f-52f5-8c3f-e7b388dad3d4"
 MacroTools = "1914dd2f-81c6-5fcd-8719-6d5c9610ff09"
 OnlineStats = "a15396b6-48d5-5d58-9928-6d29437db91e"
