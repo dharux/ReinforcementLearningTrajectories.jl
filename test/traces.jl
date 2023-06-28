@@ -57,6 +57,11 @@ end
     t[end] == (state=2, next_state=3)
     empty!(t)
     @test length(t) == 0
+
+    t2 = MultiplexTraces{(:state, :next_state)}(Int[1,2,3,4])
+    append!(t, t2[:state])
+    @test t[:state] == [1,2,3]
+    @test t[:next_state] == [2,3,4]
 end
 
 @testset "MergedTraces" begin
