@@ -148,6 +148,13 @@ for f in (:push!, :pushfirst!, :append!, :prepend!)
             throw(ArgumentError("unknown trace name: $k"))
         end
     end
+    @eval function Base.$f(t::MultiplexTraces{names}, x::RelativeTrace{left, right}) where {names, left, right}
+        if right == 0
+            $f(t[first(names)].trace, x.trace)
+        else
+            $f(t[last(names)].trace, x.trace)
+        end
+    end
 end
 
 #####
