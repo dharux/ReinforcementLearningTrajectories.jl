@@ -149,7 +149,7 @@ for f in (:push!, :pushfirst!, :append!, :prepend!)
         end
     end
     @eval function Base.$f(t::MultiplexTraces{names}, x::RelativeTrace{left, right}) where {names, left, right}
-        if right == 0 #do not accept appending the second name as it would be appended twice
+        if left == 0 #do not accept appending the second name as it would be appended twice
             $f(t[first(names)].trace, x.trace)
         end
     end
