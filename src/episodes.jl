@@ -61,7 +61,7 @@ for f in (:push!,)
         if !isempty(es.episodes) && partial
             for trace in es.traces.traces
                 if !(trace isa MultiplexTraces)
-                    push!(trace, 0) #push a duplicate of last element
+                    push!(trace, last(trace)) #push a duplicate of last element as a dummy element, should never be sampled.
                 end
             end
             last(es.episodes).terminated = true
