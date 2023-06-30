@@ -17,4 +17,5 @@ Adapt.adapt_storage(to::TestAdaptor, x) = CUDA.functional() ? CUDA.cu(x) : x
     include("controllers.jl")
     include("trajectories.jl")
     include("normalization.jl")
+    include("episodes.jl")
 end
