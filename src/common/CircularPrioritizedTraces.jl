@@ -1,6 +1,6 @@
 export CircularPrioritizedTraces
 
-using CircularArrayBuffers: capacity, CircularVectorBuffer
+using CircularArrayBuffers: CircularVectorBuffer
 
 struct CircularPrioritizedTraces{T,names,Ts} <: AbstractTraces{names,Ts}
     keys::CircularVectorBuffer{Int,Vector{Int}}
@@ -12,7 +12,7 @@ end
 function CircularPrioritizedTraces(traces::AbstractTraces{names,Ts}; default_priority) where {names,Ts}
     new_names = (:key, :priority, names...)
     new_Ts = Tuple{Int,Float32,Ts.parameters...}
-    c = capacity(traces)
+    c = CircularArrayBuffers.capacity(traces)
     CircularPrioritizedTraces{typeof(traces),new_names,new_Ts}(
         CircularVectorBuffer{Int}(c),
         SumTree(c),

@@ -1,7 +1,5 @@
 export SS′, LL′, AA′, RT, SS′ART, SS′AA′RT, SS′L′ART, SS′LL′AA′RT
 
-using CircularArrayBuffers
-
 const SS′ = (:state, :next_state)
 const LL′ = (:legal_actions_mask, :next_legal_actions_mask)
 const AA′ = (:action, :next_action)
