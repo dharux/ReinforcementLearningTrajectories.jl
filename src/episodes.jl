@@ -27,7 +27,6 @@ mutable struct EpisodesBuffer{T} #T <: AbstractTraces ?
     episodes::Deque{Episode}
     traces::T
     length::Int
-    pointer::Int
 end
 
 EpisodesBuffer(traces::AbstractTraces) = EpisodesBuffer(Deque{Episode}(), traces, 0, 0)
@@ -74,8 +73,7 @@ for f in (:push!,)
             ep.length += 1
             ep.endidx = ep.startidx + ep.length - 1
         end
-        trim(es)
-        #es.pointer = (es.pointer % capacity(es.traces)) + 1 
+        trim(es) 
     end
 end
 
