@@ -29,7 +29,7 @@ mutable struct EpisodesBuffer{T} #T <: AbstractTraces ?
     length::Int
 end
 
-EpisodesBuffer(traces::AbstractTraces) = EpisodesBuffer(Deque{Episode}(), traces, 0, 0)
+EpisodesBuffer(traces::AbstractTraces) = EpisodesBuffer(Deque{Episode}(), traces, 0)
 
 Base.getindex(es::EpisodesBuffer, idx) = getindex(es.traces, idx)
 Base.size(es::EpisodesBuffer) = size(es.traces)
