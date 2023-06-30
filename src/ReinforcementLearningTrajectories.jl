@@ -10,5 +10,5 @@ include("samplers.jl")
 include("controllers.jl")
 include("trajectory.jl")
 include("normalization.jl")
-
+include("episodes.jl")
 end
