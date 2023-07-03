@@ -45,7 +45,7 @@ Base.@kwdef struct Trajectory{C,S,T}
 
                 if controller.n_inserted >= controller.threshold
                     if controller.n_sampled <= (controller.n_inserted - controller.threshold) * controller.ratio
-                        batch = sample(sampler, container)
+                        batch = StatsBase.sample(sampler, container)
                         put!(controller.ch_out, batch)
                         controller.n_sampled += 1
                     end
@@ -107,7 +107,7 @@ on_insert!(t::Trajectory, n::Int, x) = on_insert!(t.controller, n, x)
 SampleGenerator(t::Trajectory) = SampleGenerator(t.sampler, t.container) #currently not in use
 
 on_sample!(t::Trajectory) = on_sample!(t.controller)
-sample(t::Trajectory) = sample(t.sampler, t.container)
+StatsBase.sample(t::Trajectory) = StatsBase.sample(t.sampler, t.container)
 
 """
 Keep sampling batches from the trajectory until the trajectory is not ready to
@@ -118,7 +118,7 @@ iter(t::Trajectory) = Iterators.takewhile(_ -> on_sample!(t), Iterators.cycle(Sa
 #The use of iterate(::SampleGenerator) has been suspended in v0.1.8 due to a significant drop in performance. 
 function Base.iterate(t::Trajectory, args...)
     if length(t.container) > 0 && on_sample!(t)
-        sample(t), nothing
+        StatsBase.sample(t), nothing
     else
         nothing
     end

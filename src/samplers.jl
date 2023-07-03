@@ -1,11 +1,12 @@
 using Random
+import StatsBase
 
 struct SampleGenerator{S,T}
     sampler::S
     traces::T
 end
 
-Base.iterate(s::SampleGenerator) = sample(s.sampler, s.traces), nothing
+Base.iterate(s::SampleGenerator) = StatsBase.sample(s.sampler, s.traces), nothing
 Base.iterate(s::SampleGenerator, ::Nothing) = nothing
 
 #####
@@ -19,7 +20,7 @@ Just return the underlying traces.
 """
 struct DummySampler end
 
-sample(::DummySampler, t) = t
+StatsBase.sample(::DummySampler, t) = t
 
 #####
 # BatchSampler
@@ -44,18 +45,23 @@ BatchSampler(; kw...) = BatchSampler{nothing}(; kw...)
 BatchSampler{names}(batch_size; kw...) where {names} = BatchSampler{names}(; batch_size=batch_size, kw...)
 BatchSampler{names}(; batch_size, rng=Random.GLOBAL_RNG) where {names} = BatchSampler{names}(batch_size, rng)
 
-sample(s::BatchSampler{nothing}, t::AbstractTraces) = sample(s, t, keys(t))
-sample(s::BatchSampler{names}, t::AbstractTraces) where {names} = sample(s, t, names)
+StatsBase.sample(s::BatchSampler{nothing}, t::AbstractTraces) = StatsBase.sample(s, t, keys(t))
+StatsBase.sample(s::BatchSampler{names}, t::AbstractTraces) where {names} = StatsBase.sample(s, t, names)
 
-function sample(s::BatchSampler, t::AbstractTraces, names)
+function StatsBase.sample(s::BatchSampler, t::AbstractTraces, names)
     inds = rand(s.rng, 1:length(t), s.batch_size)
+    NamedTuple{names}(map(x -> collect(t[x][inds]), names))
+end
+
+function StatsBase.sample(s::BatchSampler, t::EpisodesBuffer, names)
+    inds = StatsBase.sample(s.rng, eachindex(t.sampleable_inds), StatsBase.FrequencyWeights(t.sampleable_inds), s.batch_size)
     NamedTuple{names}(map(x -> collect(t[x][inds]), names))
 end
 
 # !!! avoid iterating an empty trajectory
 function Base.iterate(s::SampleGenerator{<:BatchSampler})
     if length(s.traces) > 0
-        sample(s.sampler, s.traces), nothing
+        StatsBase.sample(s.sampler, s.traces), nothing
     else
         nothing
     end
@@ -63,9 +69,17 @@ end
 
 #####
 
-sample(s::BatchSampler{nothing}, t::CircularPrioritizedTraces) = sample(s, t, keys(t.traces))
+StatsBase.sample(s::BatchSampler{nothing}, t::CircularPrioritizedTraces) = StatsBase.sample(s, t, keys(t.traces))
 
-function sample(s::BatchSampler, t::CircularPrioritizedTraces, names)
+function StatsBase.sample(s::BatchSampler, e::EpisodesBuffer{<:Any, <:Any, <:CircularPrioritizedTraces}, names)
+    t = e.traces
+    st = deepcopy(t.priorities)
+    st .*= e.sampleable_inds[1:end-1] #temporary sumtree that puts 0 priority to non sampleable indices.
+    inds, priorities = rand(s.rng, st, s.batch_size)
+    NamedTuple{(:key, :priority, names...)}((t.keys[inds], priorities, map(x -> collect(t.traces[x][inds]), names)...))
+end
+
+function StatsBase.sample(s::BatchSampler, t::CircularPrioritizedTraces, names)
     inds, priorities = rand(s.rng, t.priorities, s.batch_size)
     NamedTuple{(:key, :priority, names...)}((t.keys[inds], priorities, map(x -> collect(t.traces[x][inds]), names)...))
 end

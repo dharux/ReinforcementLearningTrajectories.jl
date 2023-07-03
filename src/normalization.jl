@@ -191,7 +191,7 @@ for f in (:push!, :pushfirst!, :append!, :prepend!)
     end
 end
 
-function sample(s::BatchSampler, nt::NormalizedTraces, names)
+function StatsBase.sample(s::BatchSampler, nt::NormalizedTraces, names)
     inds = rand(s.rng, 1:length(nt), s.batch_size)
     maybe_normalize(data, key) = key in keys(nt.normalizers) ? normalize(nt.normalizers[key], data) : data
     NamedTuple{names}(collect(maybe_normalize(nt[x][inds], x)) for x in names)
