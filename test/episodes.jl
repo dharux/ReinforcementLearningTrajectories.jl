@@ -2,98 +2,107 @@ using ReinforcementLearningTrajectories
 using CircularArrayBuffers
 using Test
 @testset "EpisodesBuffer" begin
-    @testset "push!" begin 
+    @testset "with circular traces" begin 
         eb = EpisodesBuffer(
             CircularArraySARTTraces(;
             capacity=10)
         )
         #push a first episode l=5 
         push!(eb, (state = 1, action = 1))
-        ep1 = only(eb.episodes)
+        @test eb.sampleable_inds[end] == 0
+        @test eb.episodes_lengths[end] == 0
+        @test eb.step_numbers[end] == 1
         for i = 1:5
             push!(eb, (state = i+1, action =i+1, reward = i, terminal = false))
-            @test ep1.startidx == 1
-            @test ep1.endidx == i
-            @test length(ep1) == i
-            @test length(eb) == i
-            @test length(eb.traces) == i
+            @test eb.sampleable_inds[end] == 0
+            @test eb.sampleable_inds[end-1] == 1
+            @test eb.step_numbers[end] == i + 1
+            @test eb.episodes_lengths[end-i:end] == fill(i, i+1)
         end
-        
+        @test eb.sampleable_inds == [1,1,1,1,1,0]
         @test length(eb.traces) == 5
-        ep1 = only(eb.episodes)
         #start new episode of 6 periods.
         push!(eb, (state = 7, action = 7))
-        @test ep1.terminated == true #mark it as terminated.
-        ep2 = last(eb.episodes)
+        @test eb.sampleable_inds[end] == 0
+        @test eb.sampleable_inds[end-1] == 0
+        @test eb.episodes_lengths[end] == 0
+        @test eb.step_numbers[end] == 1
+        @test eb.sampleable_inds == [1,1,1,1,1,0,0]
         @test eb[6][:reward] == 5 #6 is not a valid index, the reward there is dummy duplicate of previous (5)
-        for i = 8:11
+        ep2_len = 0
+        for (j,i) = enumerate(8:11)
+            ep2_len += 1
             push!(eb, (state = i, action =i, reward = i-1, terminal = false))
-            @test ep2.startidx == 7
-            @test ep2.endidx == i - 1
-            @test length(ep2) == i - 7
-            @test ep1.startidx == 1
-            @test ep1.endidx == 5
-            @test length(ep1) == 5
-            @test length(eb.traces) == i - 1 
+            @test eb.sampleable_inds[end] == 0
+            @test eb.sampleable_inds[end-1] == 1
+            @test eb.step_numbers[end] == j + 1
+            @test eb.episodes_lengths[end-j:end] == fill(ep2_len, ep2_len + 1)
         end
+        @test eb.sampleable_inds == [1,1,1,1,1,0,1,1,1,1,0]
+        @test length(eb.traces) == 10
         #three last steps replace oldest steps in the buffer.
         for (i, s) = enumerate(12:13)
-            println(i)
+            ep2_len += 1
             push!(eb, (state = s, action =s, reward = s-1, terminal = false))
-            @test ep2.startidx == 7 - i
-            @test ep2.endidx == 10
-            @test ep1.startidx == 1
-            @test ep1.endidx == 5 - i
-            @test length(ep1) == 5 - i == ep1.endidx - ep1.startidx + 1
-            @test length(eb.traces) == 10
-            @test length(ep2) == 4 + i 
+            @test eb.sampleable_inds[end] == 0
+            @test eb.sampleable_inds[end-1] == 1
+            @test eb.step_numbers[end] == i + 1 + 4
+            @test eb.episodes_lengths[end-ep2_len:end] == fill(ep2_len, ep2_len + 1)
         end
         #episode 1
-        for (i,s) in zip(ep1.startidx:ep1.endidx,3:5)
+        for (i,s) in enumerate(3:13)
+            if i in (4, 11)
+                @test eb.sampleable_inds[i] == 0
+                continue
+            else
+                @test eb.sampleable_inds[i] == 1
+            end
             b = eb[i]
             @test b[:state] == b[:action] == b[:reward] == s
             @test b[:next_state] == b[:next_action] == s + 1
         end
         #episode 2
-        for (i,s) in zip(ep2.startidx:ep2.endidx,7:12)
-            b = eb[i]
-            @test b[:state] == b[:action] == b[:reward] == s
-            @test b[:next_state] == b[:next_action] == s + 1
-        end
         #start a third episode
         push!(eb, (state = 14, action = 14))
-        @test ep2.terminated == true
-        ep3 = last(eb.episodes)
+        @test eb.sampleable_inds[end] == 0
+        @test eb.sampleable_inds[end-1] == 0
+        @test eb.episodes_lengths[end] == 0
+        @test eb.step_numbers[end] == 1
         #push until it reaches it own start
         for (i,s) in enumerate(15:26)
-            push!(eb, (state = s, action =s, reward = s-1, terminal = false)); eb.episodes
-            @test length(eb.episodes) == (i == 1 ? 3 : i < 9 ? 2 : 1)
-            @test length(ep3) == min(10,i)
-            @test ep3.endidx == 10
-            @test ep3.startidx == max(1,10 - i+1)
+            push!(eb, (state = s, action =s, reward = s-1, terminal = false))
         end
-        @testset "indexing 2" begin
-            for (i,s) in enumerate(collect(15:26)[end-10:end-1])
-                b = eb[i]
-                @test b[:state] == b[:action] == b[:reward] == s
-                @test b[:next_state] == b[:next_action] == s + 1
-            end
-        end
+        @test eb.sampleable_inds == [fill(true, 10); [false]]
+        @test eb.episodes_lengths == fill(length(15:26), 11)
+        @test eb.step_numbers == [3:13;]
+        step = popfirst!(eb)
+        @test length(eb) == length(eb.sampleable_inds) - 1 == length(eb.step_numbers) - 1 == length(eb.episodes_lengths) - 1 == 9
+        @test first(eb.step_numbers) == 4
+        step = pop!(eb)
+        @test length(eb) == length(eb.sampleable_inds) - 1 == length(eb.step_numbers) - 1 == length(eb.episodes_lengths) - 1 == 8
+        @test last(eb.step_numbers) == 12
     end
     @testset "with vector traces" begin
         eb = EpisodesBuffer(
             Traces(;
-                a=Int[],
-                b=Int[])
+                state=Int[],
+                reward=Int[])
         )
+        push!(eb, (state = 1,)) #partial inserting
         for i = 1:15
-            push!(eb, (a = i, b =i))
+            push!(eb, (state = i+1, reward =i))
         end
-        @test length(eb) == 14
         @test length(eb.traces) == 15
-        @test length(eb.episodes) == 1
+        @test eb.sampleable_inds == [fill(true, 15); [false]]
+        @test all(==(15), eb.episodes_lengths)
+        @test eb.step_numbers == [1:16;]
+        push!(eb, (state = 1,)) #partial inserting
         for i = 1:15
-            @test eb.traces[i][:a] == eb.traces[i][:b] == i
+            push!(eb, (state = i+1, reward =i))
         end
+        @test eb.sampleable_inds == [fill(true, 15); [false];fill(true, 15); [false]]
+        @test all(==(15), eb.episodes_lengths)
+        @test eb.step_numbers == [1:16;1:16]
+        @test length(eb) == 31
     end
 end
