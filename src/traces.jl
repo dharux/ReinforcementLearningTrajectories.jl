@@ -1,4 +1,4 @@
-export Trace, Traces, MultiplexTraces, Episode, Episodes
+export Trace, Traces, MultiplexTraces
 
 import MacroTools: @forward
 
