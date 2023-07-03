@@ -6,11 +6,28 @@
         action=rand(1:4, 5),
     )
 
-    b = ReinforcementLearningTrajectories.sample(s, t)
+    b = ReinforcementLearningTrajectories.StatsBase.sample(s, t)
 
     @test keys(b) == (:state, :action)
     @test size(b.state) == (3, 4, sz)
     @test size(b.action) == (sz,)
+    
+    #In EpisodesBuffer
+    eb = EpisodesBuffer(CircularArraySARTTraces(capacity=10)) 
+    push!(eb, (state = 1, action = 1))
+    for i = 1:5
+        push!(eb, (state = i+1, action =i+1, reward = i, terminal = false))
+    end
+    push!(eb, (state = 7, action = 7))
+    for (j,i) = enumerate(8:11)
+        push!(eb, (state = i, action =i, reward = i-1, terminal = false))
+    end
+    s = BatchSampler(1000)
+    b = ReinforcementLearningTrajectories.StatsBase.sample(s, eb)
+    cm = counter(b[:state])
+    @test !haskey(cm, 6)
+    @test !haskey(cm, 11)
+    @test all(in(keys(cm)), [1:5;7:10])
 end
 
 @testset "MetaSampler" begin

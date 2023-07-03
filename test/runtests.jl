@@ -1,5 +1,5 @@
 using ReinforcementLearningTrajectories
-using CircularArrayBuffers
+using CircularArrayBuffers, DataStructures
 using Test
 using CUDA
 using Adapt
