@@ -21,7 +21,7 @@ If `traces` is a capacitated buffer, such as a CircularArraySARTTraces, then the
 EpisodesBuffer assumes that individual transitions are `push!`ed. Appending is not yet supported.
 """
 
-mutable struct EpisodesBuffer{T,B,S}
+mutable struct EpisodesBuffer{names, E, T<:AbstractTraces{names, E},B,S} <: AbstractTraces{names,E}
     traces::T
     sampleable_inds::S
     step_numbers::B
@@ -30,6 +30,7 @@ end
 
 function EpisodesBuffer(traces::AbstractTraces)
     cap = any(t->t isa MultiplexTraces, traces.traces) ? capacity(traces) + 1 : capacity(traces)
+    @assert isempty(traces) "EpisodesBuffer must be initialized with empty traces."
     if !isinf(cap)
         legalinds =  CircularBuffer{Bool}(cap)
         step_numbers = CircularBuffer{Int}(cap)
