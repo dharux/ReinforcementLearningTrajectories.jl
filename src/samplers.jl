@@ -1,5 +1,4 @@
 using Random
-import StatsBase
 
 struct SampleGenerator{S,T}
     sampler::S
@@ -112,11 +111,11 @@ end
 
 MetaSampler(; kw...) = MetaSampler(NamedTuple(kw))
 
-sample(s::MetaSampler, t) = map(x -> sample(x, t), s.samplers)
+StatsBase.sample(s::MetaSampler, t) = map(x -> StatsBase.sample(x, t), s.samplers)
 
 function Base.iterate(s::SampleGenerator{<:MetaSampler})
     if length(s.traces) > 0
-        sample(s.sampler, s.traces), nothing
+        StatsBase.sample(s.sampler, s.traces), nothing
     else
         nothing
     end
@@ -148,11 +147,11 @@ struct MultiBatchSampler{S}
     n::Int
 end
 
-sample(m::MultiBatchSampler, t) = [sample(m.sampler, t) for _ in 1:m.n]
+StatsBase.sample(m::MultiBatchSampler, t) = [StatsBase.sample(m.sampler, t) for _ in 1:m.n]
 
 function Base.iterate(s::SampleGenerator{<:MultiBatchSampler})
     if length(s.traces) > 0
-        sample(s.sampler, s.traces), nothing
+        StatsBase.sample(s.sampler, s.traces), nothing
     else
         nothing
     end
@@ -175,13 +174,13 @@ end
 NStepBatchSampler(; kw...) = NStepBatchSampler{SS′ART}(; kw...)
 NStepBatchSampler{names}(; n, γ, batch_size=32, stack_size=nothing, rng=Random.GLOBAL_RNG) where {names} = NStepBatchSampler{names}(n, γ, batch_size, stack_size, rng)
 
-function sample(s::NStepBatchSampler{names}, ts) where {names}
+function StatsBase.sample(s::NStepBatchSampler{names}, ts) where {names}
     valid_range = isnothing(s.stack_size) ? (1:(length(ts)-s.n+1)) : (s.stack_size:(length(ts)-s.n+1))# think about the exteme case where s.stack_size == 1 and s.n == 1
     inds = rand(s.rng, valid_range, s.batch_size)
-    sample(s, ts, Val(names), inds)
+    StatsBase.sample(s, ts, Val(names), inds)
 end
 
-function sample(nbs::NStepBatchSampler, ts, ::Val{SS′ART}, inds)
+function StatsBase.sample(nbs::NStepBatchSampler, ts, ::Val{SS′ART}, inds)
     if isnothing(nbs.stack_size)
         s = ts[:state][inds]
         s′ = ts[:next_state][inds.+(nbs.n-1)]
@@ -205,16 +204,16 @@ function sample(nbs::NStepBatchSampler, ts, ::Val{SS′ART}, inds)
     NamedTuple{SS′ART}(map(collect, (s, s′, a, r, t)))
 end
 
-function sample(s::NStepBatchSampler, ts, ::Val{SS′L′ART}, inds)
-    s, s′, a, r, t = sample(s, ts, Val(SSART), inds)
+function StatsBase.sample(s::NStepBatchSampler, ts, ::Val{SS′L′ART}, inds)
+    s, s′, a, r, t = StatsBase.sample(s, ts, Val(SSART), inds)
     l = consecutive_view(ts[:next_legal_actions_mask], inds)
     NamedTuple{SSLART}(map(collect, (s, s′, l, a, r, t)))
 end
 
-function sample(s::NStepBatchSampler{names}, t::CircularPrioritizedTraces) where {names}
+function StatsBase.sample(s::NStepBatchSampler{names}, t::CircularPrioritizedTraces) where {names}
     inds, priorities = rand(s.rng, t.priorities, s.batch_size)
     merge(
         (key=t.keys[inds], priority=priorities),
-        sample(s, t.traces, Val(names), inds)
+        StatsBase.sample(s, t.traces, Val(names), inds)
     )
 end

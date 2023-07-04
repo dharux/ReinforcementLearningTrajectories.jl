@@ -2,6 +2,7 @@ module ReinforcementLearningTrajectories
 
 const RLTrajectories = ReinforcementLearningTrajectories
 export RLTrajectories
+import StatsBase
 
 include("patch.jl")
 include("traces.jl")

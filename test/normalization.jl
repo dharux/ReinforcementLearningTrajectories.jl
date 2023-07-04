@@ -1,6 +1,5 @@
 using Test
 using ReinforcementLearningTrajectories
-import ReinforcementLearningTrajectories: sample
 import OnlineStats: mean, std
 
 @testset "normalization.jl" begin
@@ -30,7 +29,7 @@ import OnlineStats: mean, std
         sampler = BatchSampler(1000),
         controller = InsertSampleRatioController(ratio = Inf, threshold = 0)
     )
-    normalized_batch = sample(traj)
+    normalized_batch = ReinforcementLearningTrajectories.StatsBase.sample(traj)
     @test all(extrema(normalized_batch[:state]) .≈ ((0, 4) .- m)./ss)
     @test all(extrema(normalized_batch[:next_state]) .≈ ((0, 4) .- m)./ss)
     @test all(extrema(normalized_batch[:reward]) .≈ ((0, 4) .- m)./s)

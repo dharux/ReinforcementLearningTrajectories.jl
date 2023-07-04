@@ -82,7 +82,7 @@ end
 
     s1 = NStepBatchSampler(n=n_horizon, γ=γ, stack_size=n_stack, batch_size=batch_size)
 
-    xs = RLTrajectories.sample(s1, t1)
+    xs = RLTrajectories.StatsBase.sample(s1, t1)
 
     @test size(xs.state) == (n_stack, batch_size)
     @test size(xs.next_state) == (n_stack, batch_size)
@@ -103,7 +103,7 @@ end
             terminal=Bool[0, 0, 0, 1, 0, 0, 0, 0, 1],
         )
 
-    xs2 = RLTrajectories.sample(s1, t2)
+    xs2 = RLTrajectories.StatsBase.sample(s1, t2)
 
     @test size(xs2.state) == (state_size..., n_stack, batch_size)
     @test size(xs2.next_state) == (state_size..., n_stack, batch_size)
@@ -112,7 +112,7 @@ end
     @test size(xs2.terminal) == (batch_size,)
 
     inds = [3, 5, 7]
-    xs3 = RLTrajectories.sample(s1, t2, Val(SS′ART), inds)
+    xs3 = RLTrajectories.StatsBase.sample(s1, t2, Val(SS′ART), inds)
 
     @test xs3.state == cat(
         (
