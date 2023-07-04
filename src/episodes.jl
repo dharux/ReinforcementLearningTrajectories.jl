@@ -44,39 +44,55 @@ function EpisodesBuffer(traces::AbstractTraces)
     end
 end
 
-Base.getindex(es::EpisodesBuffer, idx) = getindex(es.traces, idx)
+Base.getindex(es::EpisodesBuffer, idx...) = getindex(es.traces, idx...)
+Base.setindex!(es::EpisodesBuffer, idx...) = setindex!(es.traces, idx...)
 Base.size(es::EpisodesBuffer) = size(es.traces)
 Base.length(es::EpisodesBuffer) = length(es.traces)
+Base.keys(es::EpisodesBuffer) = keys(es.traces)
+Base.keys(es::EpisodesBuffer{<:Any,<:Any,<:CircularPrioritizedTraces}) = keys(es.traces.traces)
 
-function Base.push!(es::EpisodesBuffer, xs::NamedTuple)
-    push!(es.traces, xs)
-    partial = length(xs) < length(es.traces.traces) #this is the number of traces it contains not the number of steps.
-    if length(es.traces) == 0 
+ispartial_insert(es::EpisodesBuffer, xs) = length(xs) < length(es.traces.traces) #this is the number of traces it contains not the number of steps.
+ispartial_insert(es::EpisodesBuffer{<:Any,<:Any,<:CircularPrioritizedTraces}, xs) = length(xs) < length(es.traces.traces.traces)
+function fill_multiplex(es::EpisodesBuffer)
+    for trace in es.traces.traces
+        if !(trace isa MultiplexTraces)
+            push!(trace, last(trace)) #push a duplicate of last element as a dummy element, should never be sampled.
+        end
+    end
+end
+function fill_multiplex(es::EpisodesBuffer{<:Any,<:Any,<:CircularPrioritizedTraces})
+    for trace in es.traces.traces.traces
+        if !(trace isa MultiplexTraces)
+            push!(trace, last(trace)) #push a duplicate of last element as a dummy element, should never be sampled.
+        end
+    end
+end
+
+function Base.push!(eb::EpisodesBuffer, xs::NamedTuple)
+    push!(eb.traces, xs)
+    partial = ispartial_insert(eb, xs)
+    if length(eb.traces) == 0 
         if partial #first push should be partial
-            push!(es.step_numbers, 1)
-            push!(es.episodes_lengths, 0)
-            push!(es.sampleable_inds, 0)
+            push!(eb.step_numbers, 1)
+            push!(eb.episodes_lengths, 0)
+            push!(eb.sampleable_inds, 0)
         else
             @error "Non-partial inserting when EpisodesBuffer is empty"
         end
     elseif !partial #typical inserting
-        es.sampleable_inds[end] = 1 #previous step is now indexable
-        push!(es.sampleable_inds, 0) #this one is no longer
-        ep_length = last(es.step_numbers)
-        push!(es.episodes_lengths, ep_length)
-        startidx = max(1,length(es.step_numbers) - last(es.step_numbers))
-        es.episodes_lengths[startidx:end] .= ep_length
-        push!(es.step_numbers, ep_length + 1)
+        eb.sampleable_inds[end] = 1 #previous step is now indexable
+        push!(eb.sampleable_inds, 0) #this one is no longer
+        ep_length = last(eb.step_numbers)
+        push!(eb.episodes_lengths, ep_length)
+        startidx = max(1,length(eb.step_numbers) - last(eb.step_numbers))
+        eb.episodes_lengths[startidx:end] .= ep_length
+        push!(eb.step_numbers, ep_length + 1)
     elseif partial
-        for trace in es.traces.traces
-            if !(trace isa MultiplexTraces)
-                push!(trace, last(trace)) #push a duplicate of last element as a dummy element, should never be sampled.
-            end
-        end
-        es.sampleable_inds[end] = 0 #previous step is not indexable because it contains the last state
-        push!(es.sampleable_inds, 0) #this one isn't either
-        push!(es.step_numbers, 1)
-        push!(es.episodes_lengths, 0)
+        fill_multiplex(eb)
+        eb.sampleable_inds[end] = 0 #previous step is not indexable because it contains the last state
+        push!(eb.sampleable_inds, 0) #this one isn't either
+        push!(eb.step_numbers, 1)
+        push!(eb.episodes_lengths, 0)
     end
     return nothing
 end

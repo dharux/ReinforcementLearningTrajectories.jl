@@ -6,9 +6,9 @@ export RLTrajectories
 include("patch.jl")
 include("traces.jl")
 include("common/common.jl")
+include("episodes.jl")
 include("samplers.jl")
 include("controllers.jl")
 include("trajectory.jl")
 include("normalization.jl")
-include("episodes.jl")
 end

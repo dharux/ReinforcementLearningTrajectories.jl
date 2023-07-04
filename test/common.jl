@@ -145,7 +145,7 @@ end
 
     s = BatchSampler(5)
 
-    b = ReinforcementLearningTrajectories.sample(s, t)
+    b = ReinforcementLearningTrajectories.StatsBase.sample(s, t)
 
     t[:priority, [1, 2]] = [0, 0]
 
@@ -154,7 +154,35 @@ end
 
     t[:priority, [3, 4, 5]] = [0, 1, 0]
 
-    b = ReinforcementLearningTrajectories.sample(s, t)
+    b = ReinforcementLearningTrajectories.StatsBase.sample(s, t)
 
     @test b.key == [4, 4, 4, 4, 4] # the priority of the rest transitions are set to 0
+
+    #EpisodesBuffer
+    t = CircularPrioritizedTraces(
+        CircularArraySARTTraces(;
+            capacity=10
+        ),
+        default_priority=1.0f0
+    )
+
+    eb = EpisodesBuffer(t) 
+    push!(eb, (state = 1, action = 1))
+    for i = 1:5
+        push!(eb, (state = i+1, action =i+1, reward = i, terminal = false))
+    end
+    push!(eb, (state = 7, action = 7))
+    for (j,i) = enumerate(8:11)
+        push!(eb, (state = i, action =i, reward = i-1, terminal = false))
+    end
+    s = BatchSampler(1000)
+    b = ReinforcementLearningTrajectories.StatsBase.sample(s, eb)
+    cm = counter(b[:state])
+    @test !haskey(cm, 6)
+    @test !haskey(cm, 11)
+    @test all(in(keys(cm)), [1:5;7:10])
+
+
+    eb[:priority, [1, 2]] = [0, 0]
+    @test eb[:priority] == [zeros(2);ones(8)]
 end
