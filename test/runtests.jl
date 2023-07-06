@@ -3,6 +3,7 @@ using CircularArrayBuffers, DataStructures
 using Test
 using CUDA
 using Adapt
+import ReinforcementLearningTrajectories.StatsBase.sample
 
 struct TestAdaptor end
 

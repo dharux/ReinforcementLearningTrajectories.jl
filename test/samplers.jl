@@ -6,7 +6,7 @@
         action=rand(1:4, 5),
     )
 
-    b = ReinforcementLearningTrajectories.StatsBase.sample(s, t)
+    b = sample(s, t)
 
     @test keys(b) == (:state, :action)
     @test size(b.state) == (3, 4, sz)
@@ -23,7 +23,7 @@
         push!(eb, (state = i, action =i, reward = i-1, terminal = false))
     end
     s = BatchSampler(1000)
-    b = ReinforcementLearningTrajectories.StatsBase.sample(s, eb)
+    b = sample(s, eb)
     cm = counter(b[:state])
     @test !haskey(cm, 6)
     @test !haskey(cm, 11)

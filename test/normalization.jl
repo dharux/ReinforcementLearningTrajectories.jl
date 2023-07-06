@@ -29,7 +29,7 @@ import OnlineStats: mean, std
     @test extrema(unnormalized_batch[:state]) == (0, 4)
     normalized_batch = nt[[1:5;]]
     
-    normalized_batch = ReinforcementLearningTrajectories.StatsBase.sample(traj)
+    normalized_batch = sample(traj)
     @test all(extrema(normalized_batch[:state]) .≈ ((0, 4) .- m)./ss)
     @test all(extrema(normalized_batch[:next_state]) .≈ ((0, 4) .- m)./ss)
     @test all(extrema(normalized_batch[:reward]) .≈ ((0, 4) .- m)./s)

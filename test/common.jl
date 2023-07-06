@@ -145,7 +145,7 @@ end
 
     s = BatchSampler(5)
 
-    b = ReinforcementLearningTrajectories.StatsBase.sample(s, t)
+    b = sample(s, t)
 
     t[:priority, [1, 2]] = [0, 0]
 
@@ -154,7 +154,7 @@ end
 
     t[:priority, [3, 4, 5]] = [0, 1, 0]
 
-    b = ReinforcementLearningTrajectories.StatsBase.sample(s, t)
+    b = sample(s, t)
 
     @test b.key == [4, 4, 4, 4, 4] # the priority of the rest transitions are set to 0
 
@@ -176,7 +176,7 @@ end
         push!(eb, (state = i, action =i, reward = i-1, terminal = false))
     end
     s = BatchSampler(1000)
-    b = ReinforcementLearningTrajectories.StatsBase.sample(s, eb)
+    b = sample(s, eb)
     cm = counter(b[:state])
     @test !haskey(cm, 6)
     @test !haskey(cm, 11)
