@@ -4,7 +4,7 @@ using Test
 @testset "EpisodesBuffer" begin
     @testset "with circular traces" begin 
         eb = EpisodesBuffer(
-            CircularArraySARTTraces(;
+            CircularArraySARSATTraces(;
             capacity=10)
         )
         #push a first episode l=5 

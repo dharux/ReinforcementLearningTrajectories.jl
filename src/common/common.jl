@@ -11,6 +11,7 @@ const SS′LL′AA′RT = (SS′..., LL′..., AA′..., RT...)
 
 include("sum_tree.jl")
 include("CircularArraySARTTraces.jl")
+include("CircularArraySARSATTraces.jl")
 include("CircularArraySLARTTraces.jl")
 include("CircularPrioritizedTraces.jl")
 include("ElasticArraySARTTraces.jl")

@@ -25,7 +25,7 @@
 end
 
 @testset "CircularArraySARTTraces" begin
-    t = CircularArraySARTTraces(;
+    t = CircularArraySARSATTraces(;
         capacity=3,
         state=Float32 => (2, 3),
         action=Float32 => (2,),
@@ -33,7 +33,7 @@ end
         terminal=Bool => ()
     ) |> gpu
 
-    @test t isa CircularArraySARTTraces
+    @test t isa CircularArraySARSATTraces
 
     push!(t, (state=ones(Float32, 2, 3), action=ones(Float32, 2)) |> gpu)
     @test length(t) == 0
@@ -129,7 +129,7 @@ end
 
 @testset "CircularPrioritizedTraces" begin
     t = CircularPrioritizedTraces(
-        CircularArraySARTTraces(;
+        CircularArraySARSATTraces(;
             capacity=3
         ),
         default_priority=1.0f0
@@ -160,7 +160,7 @@ end
 
     #EpisodesBuffer
     t = CircularPrioritizedTraces(
-        CircularArraySARTTraces(;
+        CircularArraySARSATTraces(;
             capacity=10
         ),
         default_priority=1.0f0
