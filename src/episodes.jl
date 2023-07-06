@@ -28,6 +28,17 @@ mutable struct EpisodesBuffer{names, E, T<:AbstractTraces{names, E},B,S} <: Abst
     episodes_lengths::B
 end
 
+"""
+    PartialNamedTuple(::NamedTuple)
+
+Wraps a NamedTuple to signal an EpisodesBuffer that it is pushed into that it should 
+ignore the fact that this is a partial insertion. Used at the end of an episode to
+complete multiplex traces before moving to the next episode.
+"""
+struct PartialNamedTuple{T}
+    namedtuple::T
+end
+
 function EpisodesBuffer(traces::AbstractTraces)
     cap = any(t->t isa MultiplexTraces, traces.traces) ? capacity(traces) + 1 : capacity(traces)
     @assert isempty(traces) "EpisodesBuffer must be initialized with empty traces."
@@ -103,10 +114,6 @@ end
 
 function Base.push!(eb::EpisodesBuffer, xs::PartialNamedTuple) #wrap a NamedTuple to push without incrementing the step number. 
     push!(eb.traces, xs.namedtuple)
-end
-
-struct PartialNamedTuple{T}
-    namedtuple::T
 end
 
 #= currently unsupported due to lack of support of appending a named tuple to traces with multiplextraces.
