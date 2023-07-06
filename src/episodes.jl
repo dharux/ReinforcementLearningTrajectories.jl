@@ -1,4 +1,4 @@
-export EpisodesBuffer
+export EpisodesBuffer, PartialNamedTuple
 import DataStructures.CircularBuffer
 
 """
@@ -79,14 +79,10 @@ end
 function Base.push!(eb::EpisodesBuffer, xs::NamedTuple)
     push!(eb.traces, xs)
     partial = ispartial_insert(eb, xs)
-    if length(eb.traces) == 0 
-        if partial #first push should be partial
-            push!(eb.step_numbers, 1)
-            push!(eb.episodes_lengths, 0)
-            push!(eb.sampleable_inds, 0)
-        else
-            @error "Non-partial inserting when EpisodesBuffer is empty"
-        end
+    if length(eb.traces) == 0 && partial #first push should be partial
+        push!(eb.step_numbers, 1)
+        push!(eb.episodes_lengths, 0)
+        push!(eb.sampleable_inds, 0)
     elseif !partial #typical inserting
         eb.sampleable_inds[end] = 1 #previous step is now indexable
         push!(eb.sampleable_inds, 0) #this one is no longer
@@ -103,6 +99,14 @@ function Base.push!(eb::EpisodesBuffer, xs::NamedTuple)
         push!(eb.episodes_lengths, 0)
     end
     return nothing
+end
+
+function Base.push!(eb::EpisodesBuffer, xs::PartialNamedTuple) #wrap a NamedTuple to push without incrementing the step number. 
+    push!(eb.traces, xs.namedtuple)
+end
+
+struct PartialNamedTuple{T}
+    namedtuple::T
 end
 
 #= currently unsupported due to lack of support of appending a named tuple to traces with multiplextraces.

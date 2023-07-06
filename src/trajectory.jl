@@ -105,6 +105,11 @@ function Base.push!(t::Trajectory, x)
     on_insert!(t, x)
 end
 
+function Base.push!(t::Trajectory, x::PartialNamedTuple)
+    push!(t.container, x)
+    on_insert!(t, x.namedtuple)
+end
+
 on_insert!(t::Trajectory, x) = on_insert!(t, 1, x)
 on_insert!(t::Trajectory, n::Int, x) = on_insert!(t.controller, n, x)
 
