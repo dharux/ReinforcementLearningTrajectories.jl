@@ -32,4 +32,4 @@ function CircularArraySARSATTraces(;
     )
 end
 
-CircularArrayBuffers.capacity(t::CircularArraySARTTraces) = CircularArrayBuffers.capacity(minimum(map(capacity,t.traces)))
+CircularArrayBuffers.capacity(t::CircularArraySARSATTraces) = CircularArrayBuffers.capacity(minimum(map(capacity,t.traces)))
