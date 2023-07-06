@@ -140,3 +140,6 @@ Base.IteratorSize(t::Trajectory) = Base.IteratorSize(iter(t))
 
 Base.iterate(t::Trajectory{<:Any,<:Any,<:AsyncInsertSampleRatioController}, args...) = iterate(t.controller.ch_out, args...)
 Base.IteratorSize(t::Trajectory{<:Any,<:Any,<:AsyncInsertSampleRatioController}) = Base.IteratorSize(t.controller.ch_out)
+
+Base.keys(t::Trajectory) = keys(t.container)
+Base.haskey(t::Trajectory, k) = k in keys(t)
