@@ -95,7 +95,11 @@ function Base.push!(eb::EpisodesBuffer, xs::NamedTuple)
         push!(eb.episodes_lengths, 0)
         push!(eb.sampleable_inds, 0)
     elseif !partial #typical inserting
-        eb.sampleable_inds[end] = 1 #previous step is now indexable
+        if length(eb.traces) < length(eb) && length(eb) > 2 #case when PartialNamedTuple is used. Steps are indexable one step later
+            eb.sampleable_inds[end-1] = 1 
+        else #case when we don't, length of traces and eb will match.
+            eb.sampleable_inds[end] = 1 #previous step is now indexable
+        end
         push!(eb.sampleable_inds, 0) #this one is no longer
         ep_length = last(eb.step_numbers)
         push!(eb.episodes_lengths, ep_length)
@@ -114,6 +118,7 @@ end
 
 function Base.push!(eb::EpisodesBuffer, xs::PartialNamedTuple) #wrap a NamedTuple to push without incrementing the step number. 
     push!(eb.traces, xs.namedtuple)
+    eb.sampleable_inds[end-1] = 1 #completes the episode trajectory.
 end
 
 #= currently unsupported due to lack of support of appending a named tuple to traces with multiplextraces.
