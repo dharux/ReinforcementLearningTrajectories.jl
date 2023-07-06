@@ -20,18 +20,18 @@ Supported methoes are:
 - `take!(t::Trajectory)`, take a batch of experiences from the trajectory. Note
   that `nothing` may be returned, indicating that it's not ready to sample yet.
 """
-Base.@kwdef struct Trajectory{C,S,T}
+Base.@kwdef struct Trajectory{C,S,T,F}
     container::C
     sampler::S = DummySampler()
     controller::T = InsertSampleRatioController()
-    transformer::Any = identity
+    transformer::F = identity
 
     function Trajectory(c::C, s::S, t::T=InsertSampleRatioController(), f=identity) where {C,S,T}
         if c isa EpisodesBuffer
-            new{C,S,T}(c, s, t, f)
+            new{C,S,T,typeof(f)}(c, s, t, f)
         else
             eb = EpisodesBuffer(c)
-            new{typeof(eb),S,T}(eb, s, t, f)
+            new{typeof(eb),S,T,typeof(f)}(eb, s, t, f)
         end
     end
 
@@ -63,7 +63,7 @@ Base.@kwdef struct Trajectory{C,S,T}
         bind(controller.ch_in, t)
         bind(controller.ch_out, t)
         
-        new{C,S,T}(container, sampler, controller, transformer)
+        new{C,S,T,typeof(transformer)}(container, sampler, controller, transformer)
     end
 end
 
@@ -105,7 +105,7 @@ function Base.push!(t::Trajectory, x)
     on_insert!(t, x)
 end
 
-function Base.push!(t::Trajectory, x::PartialNamedTuple)
+function Base.push!(t::Trajectory, x::PartialNamedTuple) #used at EpisodesBuffer
     push!(t.container, x)
     on_insert!(t, x.namedtuple)
 end
