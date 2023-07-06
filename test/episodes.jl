@@ -81,6 +81,10 @@ using Test
         step = pop!(eb)
         @test length(eb) == length(eb.sampleable_inds) - 1 == length(eb.step_numbers) - 1 == length(eb.episodes_lengths) - 1 == 8
         @test last(eb.step_numbers) == 12
+        @test size(eb) == size(eb.traces) == (8,)
+        empty!(eb)
+        @test size(eb) == (0,) == size(eb.traces) == size(eb.sampleable_inds) == size(eb.episodes_lengths) == size(eb.step_numbers)
+        show(eb); 
     end
     @testset "with vector traces" begin
         eb = EpisodesBuffer(
