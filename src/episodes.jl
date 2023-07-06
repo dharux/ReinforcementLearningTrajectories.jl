@@ -50,9 +50,17 @@ Base.size(es::EpisodesBuffer) = size(es.traces)
 Base.length(es::EpisodesBuffer) = length(es.traces)
 Base.keys(es::EpisodesBuffer) = keys(es.traces)
 Base.keys(es::EpisodesBuffer{<:Any,<:Any,<:CircularPrioritizedTraces}) = keys(es.traces.traces)
+function Base.show(io::IO, m::MIME"text/plain", eb::EpisodesBuffer{names}) where {names}
+    s = nameof(typeof(eb))
+    t = eb.traces
+    println(io, "$s containing")
+    show(io, m::MIME"text/plain", t)
+end
 
-ispartial_insert(es::EpisodesBuffer, xs) = length(xs) < length(es.traces.traces) #this is the number of traces it contains not the number of steps.
-ispartial_insert(es::EpisodesBuffer{<:Any,<:Any,<:CircularPrioritizedTraces}, xs) = length(xs) < length(es.traces.traces.traces)
+ispartial_insert(traces::Traces, xs) = length(xs) < length(traces.traces) #this is the number of traces it contains not the number of steps.
+ispartial_insert(es::EpisodesBuffer, xs) = ispartial_insert(es.traces, xs)
+ispartial_insert(traces::CircularPrioritizedTraces, xs) = ispartial_insert(traces.traces, xs)
+
 function fill_multiplex(es::EpisodesBuffer)
     for trace in es.traces.traces
         if !(trace isa MultiplexTraces)

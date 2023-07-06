@@ -26,7 +26,14 @@ Base.@kwdef struct Trajectory{C,S,T}
     controller::T = InsertSampleRatioController()
     transformer::Any = identity
 
-    Trajectory(c::C, s::S, t::T=InsertSampleRatioController(), f=identity) where {C,S,T} = new{C,S,T}(c, s, t, f)
+    function Trajectory(c::C, s::S, t::T=InsertSampleRatioController(), f=identity) where {C,S,T}
+        if c isa EpisodesBuffer
+            new{C,S,T}(c, s, t, f)
+        else
+            eb = EpisodesBuffer(c)
+            new{typeof(eb),S,T}(eb, s, t, f)
+        end
+    end
 
     function Trajectory(container::C, sampler::S, controller::T, transformer) where {C,S,T<:AsyncInsertSampleRatioController}
         t = Threads.@spawn while true
@@ -55,6 +62,7 @@ Base.@kwdef struct Trajectory{C,S,T}
 
         bind(controller.ch_in, t)
         bind(controller.ch_out, t)
+        
         new{C,S,T}(container, sampler, controller, transformer)
     end
 end

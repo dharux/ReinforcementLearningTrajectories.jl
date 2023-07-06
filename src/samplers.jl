@@ -47,14 +47,13 @@ BatchSampler{names}(; batch_size, rng=Random.GLOBAL_RNG) where {names} = BatchSa
 StatsBase.sample(s::BatchSampler{nothing}, t::AbstractTraces) = StatsBase.sample(s, t, keys(t))
 StatsBase.sample(s::BatchSampler{names}, t::AbstractTraces) where {names} = StatsBase.sample(s, t, names)
 
-function StatsBase.sample(s::BatchSampler, t::AbstractTraces, names)
-    inds = rand(s.rng, 1:length(t), s.batch_size)
+function StatsBase.sample(s::BatchSampler, t::AbstractTraces, names, weights = StatsBase.UnitWeights{Int}(length(t)))
+    inds = StatsBase.sample(s.rng, 1:length(t), weights, s.batch_size)
     NamedTuple{names}(map(x -> collect(t[x][inds]), names))
 end
 
 function StatsBase.sample(s::BatchSampler, t::EpisodesBuffer, names)
-    inds = StatsBase.sample(s.rng, eachindex(t.sampleable_inds), StatsBase.FrequencyWeights(t.sampleable_inds), s.batch_size)
-    NamedTuple{names}(map(x -> collect(t[x][inds]), names))
+    StatsBase.sample(s, t.traces, names, StatsBase.FrequencyWeights(t.sampleable_inds[1:end-1]))
 end
 
 # !!! avoid iterating an empty trajectory

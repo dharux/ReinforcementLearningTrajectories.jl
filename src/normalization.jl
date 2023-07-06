@@ -180,7 +180,7 @@ function Base.show(io::IO, ::MIME"text/plain", t::NormalizedTraces{names,T}) whe
     end
 end
 
-@forward NormalizedTraces.traces Base.length, Base.size, Base.lastindex, Base.firstindex, Base.getindex, Base.view, Base.pop!, Base.popfirst!, Base.empty!, Base.parent
+@forward NormalizedTraces.traces Base.length, Base.size, Base.lastindex, Base.firstindex, Base.view, Base.pop!, Base.popfirst!, Base.empty!, Base.parent
 
 for f in (:push!, :pushfirst!, :append!, :prepend!)
     @eval function Base.$f(nt::NormalizedTraces, x::T) where T
@@ -191,8 +191,19 @@ for f in (:push!, :pushfirst!, :append!, :prepend!)
     end
 end
 
-function StatsBase.sample(s::BatchSampler, nt::NormalizedTraces, names)
-    inds = rand(s.rng, 1:length(nt), s.batch_size)
+function StatsBase.sample(s::BatchSampler, nt::NormalizedTraces, names, weights = StatsBase.UnitWeights{Int}(length(nt)))
+    inds = StatsBase.sample(s.rng, 1:length(nt), weights, s.batch_size)
     maybe_normalize(data, key) = key in keys(nt.normalizers) ? normalize(nt.normalizers[key], data) : data
     NamedTuple{names}(collect(maybe_normalize(nt[x][inds], x)) for x in names)
 end
+
+function Base.getindex(nt::NormalizedTraces, inds)
+    maybe_normalize(data, key) = key in keys(nt.normalizers) ? normalize(nt.normalizers[key], data) : data
+    NamedTuple{keys(nt.traces)}(collect(maybe_normalize(nt.traces[x][inds], x)) for x in keys(nt.traces))
+end
+
+function Base.getindex(nt::NormalizedTraces, s::Symbol)
+    getindex(nt.traces, s)
+end
+
+ispartial_insert(traces::NormalizedTraces, xs) = ispartial_insert(traces.traces, xs)
