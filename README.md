@@ -12,7 +12,8 @@ The relationship of several concepts provided in this package:
 ┌───────────────────────────────────┐
 │ Trajectory                        │
 │ ┌───────────────────────────────┐ │
-│ │ AbstractTraces                │ │
+│ │ EpisodesBuffer wrapping a     | |
+| | AbstractTraces                │ │
 │ │             ┌───────────────┐ │ │
 │ │ :trace_A => │ AbstractTrace │ │ │
 │ │             └───────────────┘ │ │
@@ -61,8 +62,7 @@ julia> for batch in t
 - `Traces`
 - `MultiplexTraces`
 - `CircularSARTTraces`
-- `Episode`
-- `Episodes`
+- `NormalizedTraces`
 
 **Samplers**
 
