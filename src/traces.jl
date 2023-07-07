@@ -51,7 +51,7 @@ Base.setindex!(s::Trace, v, I) = setindex!(s.parent, v, ntuple(i -> i == ndims(s
 @forward Trace.parent Base.parent, Base.pushfirst!, Base.push!, Base.append!, Base.prepend!, Base.pop!, Base.popfirst!, Base.empty!
 
 #By default, AbstractTrace have infinity capacity (like a Vector). This method is specialized for 
-#CircularArraySARTTraces in common.jl. The functions below are made that way to avoid type piracy.
+#CircularArraySARSTTraces in common.jl. The functions below are made that way to avoid type piracy.
 capacity(t::AbstractTrace) = ReinforcementLearningTrajectories.capacity(t.parent)
 capacity(t::CircularArrayBuffer) = CircularArrayBuffers.capacity(t)
 capacity(::AbstractVector) = Inf

@@ -133,7 +133,7 @@ arrays (see [`array_normalizer`](@ref)).
 
 # Examples
 ```
-t = CircularArraySARTTraces(capacity = 10, state = Float64 => (5,))
+t = CircularArraySARSTTraces(capacity = 10, state = Float64 => (5,))
 nt = NormalizedTraces(t, reward = scalar_normalizer(), state = array_normalizer((5,)))
 # :next_state will also be normalized. 
 traj = Trajectory(

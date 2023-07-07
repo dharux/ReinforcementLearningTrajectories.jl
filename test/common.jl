@@ -24,7 +24,7 @@
     @test length(t) == 0
 end
 
-@testset "CircularArraySARTTraces" begin
+@testset "CircularArraySARSTTraces" begin
     t = CircularArraySARSATTraces(;
         capacity=3,
         state=Float32 => (2, 3),

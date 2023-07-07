@@ -10,7 +10,7 @@ const SS′L′ART = (SS′..., :next_legal_actions_mask, :action, RT...)
 const SS′LL′AA′RT = (SS′..., LL′..., AA′..., RT...)
 
 include("sum_tree.jl")
-include("CircularArraySARTTraces.jl")
+include("CircularArraySARSTTraces.jl")
 include("CircularArraySARSATTraces.jl")
 include("CircularArraySLARTTraces.jl")
 include("CircularPrioritizedTraces.jl")

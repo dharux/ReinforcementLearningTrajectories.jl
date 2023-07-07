@@ -16,7 +16,7 @@ This information is used to correctly sample the traces. For example, if we have
 be true for the index of the first ten steps, and 0 at the index of state number 11. episodes_lengths will be 11
 consecutive 10s (the episode saw 11 states but 10 steps occured). step_numbers will be 1 to 11.
 
-If `traces` is a capacitated buffer, such as a CircularArraySARTTraces, then these three vectors will also be circular.
+If `traces` is a capacitated buffer, such as a CircularArraySARSTTraces, then these three vectors will also be circular.
 
 EpisodesBuffer assumes that individual transitions are `push!`ed. Appending is not yet supported.
 """
