@@ -4,7 +4,7 @@ using Test
 @testset "EpisodesBuffer" begin
     @testset "with circular traces" begin 
         eb = EpisodesBuffer(
-            CircularArraySARSTTraces(;
+            CircularArraySARTSTraces(;
             capacity=10)
         )
         #push a first episode l=5 
@@ -88,7 +88,7 @@ using Test
     end
     @testset "with PartialNamedTuple" begin 
         eb = EpisodesBuffer(
-            CircularArraySARSATTraces(;
+            CircularArraySARTSATraces(;
             capacity=10)
         )
         #push a first episode l=5 
