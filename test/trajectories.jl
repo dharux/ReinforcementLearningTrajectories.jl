@@ -9,9 +9,13 @@
     batches = collect(t)
     @test length(batches) == 0
 
-    push!(t, (a=1, b=false))
+    push!(t, (a = 1,))
+    for i in 1:10
+        push!(t, (a=i, b=true))
+    end
+
     batches = collect(t)
-    @test length(batches) == 1
+    @test length(batches) == 11
 end
 
 @testset "trajectories" begin
@@ -32,7 +36,10 @@ end
 
     @test length(batches) == 0  # threshold not reached yet
 
-    append!(t, Traces(a=[1, 2, 3], b=[false, true, false]))
+    push!(t, (a = 1,))
+    for i in 1:2
+        push!(t, (a=i+1, b=true))
+    end
 
     for batch in t
         push!(batches, batch)
@@ -48,7 +55,9 @@ end
 
     @test length(batches) == 1  # 4 inserted, threshold is 4, ratio is 0.25
 
-    append!(t, Traces(a=[5, 6, 7], b=[true, true, true]))
+    for i in 5:7
+        push!(t, (a=i, b=true))
+    end
 
     for batch in t
         push!(batches, batch)
@@ -64,16 +73,16 @@ end
 
     @test length(batches) == 2  # 8 inserted, ratio is 0.25
 
-    n = 100
+    n = 400
     for i in 1:n
-        append!(t, Traces(a=[i, i, i, i], b=[false, true, false, true]))
+        push!(t, (a=i, b=true))
     end
 
     s = 0
     for _ in t
         s += 1
     end
-    @test s == n
+    @test s == n*0.25
 end
 
 @testset "async trajectories" begin

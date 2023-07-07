@@ -1,6 +1,6 @@
 export CircularPrioritizedTraces
 
-using CircularArrayBuffers: capacity, CircularVectorBuffer
+using CircularArrayBuffers: CircularVectorBuffer
 
 struct CircularPrioritizedTraces{T,names,Ts} <: AbstractTraces{names,Ts}
     keys::CircularVectorBuffer{Int,Vector{Int}}

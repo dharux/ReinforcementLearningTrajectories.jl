@@ -6,22 +6,28 @@
         action=rand(1:4, 5),
     )
 
-    b = ReinforcementLearningTrajectories.sample(s, t)
+    b = sample(s, t)
 
     @test keys(b) == (:state, :action)
     @test size(b.state) == (3, 4, sz)
     @test size(b.action) == (sz,)
-
-    e = Episodes() do
-        Episode(Traces(state=rand(2, 3, 0), action=rand(0)))
+    
+    #In EpisodesBuffer
+    eb = EpisodesBuffer(CircularArraySARTSTraces(capacity=10)) 
+    push!(eb, (state = 1, action = 1))
+    for i = 1:5
+        push!(eb, (state = i+1, action =i+1, reward = i, terminal = false))
     end
-
-    push!(e, Episode(Traces(state=rand(2, 3, 2), action=rand(2))))
-    push!(e, Episode(Traces(state=rand(2, 3, 3), action=rand(3))))
-
-    @test length(e) == 5
-    @test size(e[2:4].state) == (2, 3, 3)
-    @test size(e[2:4].action) == (3,)
+    push!(eb, (state = 7, action = 7))
+    for (j,i) = enumerate(8:11)
+        push!(eb, (state = i, action =i, reward = i-1, terminal = false))
+    end
+    s = BatchSampler(1000)
+    b = sample(s, eb)
+    cm = counter(b[:state])
+    @test !haskey(cm, 6)
+    @test !haskey(cm, 11)
+    @test all(in(keys(cm)), [1:5;7:10])
 end
 
 @testset "MetaSampler" begin
@@ -32,12 +38,14 @@ end
         ),
         sampler=MetaSampler(policy=BatchSampler(3), critic=BatchSampler(5)),
     )
-
-    append!(t, Traces(a=rand(Int, 10), b=rand(Bool, 10)))
+    push!(t, (a = 1,))
+    for i in 1:10
+        push!(t, (a=i, b=true))
+    end
 
     batches = collect(t)
 
-    @test length(batches) == 10
+    @test length(batches) == 11
     @test length(batches[1][:policy][:a]) == 3 && length(batches[1][:critic][:b]) == 5
 end
 
@@ -50,11 +58,14 @@ end
         sampler=MetaSampler(policy=BatchSampler(3), critic=MultiBatchSampler(BatchSampler(5), 2)),
     )
 
-    append!(t, Traces(a=rand(Int, 10), b=rand(Bool, 10)))
+    push!(t, (a = 1,))
+    for i in 1:10
+        push!(t, (a=i, b=true))
+    end
 
     batches = collect(t)
 
-    @test length(batches) == 10
+    @test length(batches) == 11
     @test length(batches[1][:policy][:a]) == 3
     @test length(batches[1][:critic]) == 2 # we sampled 2 batches for critic
     @test length(batches[1][:critic][1][:b]) == 5 #each batch is 5 samples 
@@ -76,7 +87,7 @@ end
 
     s1 = NStepBatchSampler(n=n_horizon, γ=γ, stack_size=n_stack, batch_size=batch_size)
 
-    xs = RLTrajectories.sample(s1, t1)
+    xs = RLTrajectories.StatsBase.sample(s1, t1)
 
     @test size(xs.state) == (n_stack, batch_size)
     @test size(xs.next_state) == (n_stack, batch_size)
@@ -97,7 +108,7 @@ end
             terminal=Bool[0, 0, 0, 1, 0, 0, 0, 0, 1],
         )
 
-    xs2 = RLTrajectories.sample(s1, t2)
+    xs2 = RLTrajectories.StatsBase.sample(s1, t2)
 
     @test size(xs2.state) == (state_size..., n_stack, batch_size)
     @test size(xs2.next_state) == (state_size..., n_stack, batch_size)
@@ -106,7 +117,7 @@ end
     @test size(xs2.terminal) == (batch_size,)
 
     inds = [3, 5, 7]
-    xs3 = RLTrajectories.sample(s1, t2, Val(SS′ART), inds)
+    xs3 = RLTrajectories.StatsBase.sample(s1, t2, Val(SS′ART), inds)
 
     @test xs3.state == cat(
         (

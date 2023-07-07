@@ -1,8 +1,8 @@
-export Trace, Traces, MultiplexTraces, Episode, Episodes
+export Trace, Traces, MultiplexTraces
 
 import MacroTools: @forward
 
-import CircularArrayBuffers
+import CircularArrayBuffers.CircularArrayBuffer
 import Adapt
 
 #####
@@ -48,7 +48,13 @@ Base.size(x::Trace) = (size(x.parent, ndims(x.parent)),)
 Base.getindex(s::Trace, I) = Base.maybeview(s.parent, ntuple(i -> i == ndims(s.parent) ? I : (:), Val(ndims(s.parent)))...)
 Base.setindex!(s::Trace, v, I) = setindex!(s.parent, v, ntuple(i -> i == ndims(s.parent) ? I : (:), Val(ndims(s.parent)))...)
 
-@forward Trace.parent Base.parent, Base.pushfirst!, Base.push!, Base.append!, Base.prepend!, Base.pop!, Base.popfirst!, Base.empty!, CircularArrayBuffers.capacity
+@forward Trace.parent Base.parent, Base.pushfirst!, Base.push!, Base.append!, Base.prepend!, Base.pop!, Base.popfirst!, Base.empty!
+
+#By default, AbstractTrace have infinity capacity (like a Vector). This method is specialized for 
+#CircularArraySARTSTraces in common.jl. The functions below are made that way to avoid type piracy.
+capacity(t::AbstractTrace) = ReinforcementLearningTrajectories.capacity(t.parent)
+capacity(t::CircularArrayBuffer) = CircularArrayBuffers.capacity(t)
+capacity(::AbstractVector) = Inf
 
 #####
 
@@ -88,6 +94,7 @@ Base.getindex(s::RelativeTrace{0,-1}, I) = getindex(s.trace, I)
 Base.getindex(s::RelativeTrace{1,0}, I) = getindex(s.trace, I .+ 1)
 Base.setindex!(s::RelativeTrace{0,-1}, v, I) = setindex!(s.trace, v, I)
 Base.setindex!(s::RelativeTrace{1,0}, v, I) = setindex!(s.trace, v, I .+ 1)
+capacity(t::RelativeTrace) = capacity(t.trace)
 
 """
     MultiplexTraces{names}(trace)
@@ -136,6 +143,7 @@ Base.getindex(t::MultiplexTraces{names}, I::Int) where {names} = NamedTuple{name
 Base.getindex(t::MultiplexTraces{names}, I::AbstractArray{Int}) where {names} = NamedTuple{names}((t.trace[I], t.trace[I.+1]))
 
 Base.size(t::MultiplexTraces) = (max(0, length(t.trace) - 1),)
+capacity(t::MultiplexTraces) = capacity(t.trace)
 
 @forward MultiplexTraces.trace Base.parent, Base.pop!, Base.popfirst!, Base.empty!
 
@@ -144,8 +152,6 @@ for f in (:push!, :pushfirst!, :append!, :prepend!)
         k, v = first(ks), first(x)
         if k in names
             $f(t.trace, v)
-        else
-            throw(ArgumentError("unknown trace name: $k"))
         end
     end
     @eval function Base.$f(t::MultiplexTraces{names}, x::RelativeTrace{left, right}) where {names, left, right}
@@ -155,139 +161,6 @@ for f in (:push!, :pushfirst!, :append!, :prepend!)
     end
 end
 
-#####
-
-"""
-    Episode(traces)
-
-An `Episode` is a wrapper around [`Traces`](@ref). You can use `(e::Episode)[]`
-to check/update whether the episode reaches a terminal or not.
-"""
-struct Episode{T,names,E} <: AbstractTraces{names,E}
-    traces::T
-    is_terminated::Ref{Bool}
-end
-
-Episode(t::AbstractTraces{names,T}) where {names,T} = Episode{typeof(t),names,T}(t, Ref(false))
-
-Adapt.adapt_structure(to, t::Episode{T,names,E}) where {T,names,E} = Episode{T,names,E}(Adapt.adapt_structure(to, t.traces), t.is_terminated)
-
-@forward Episode.traces Base.getindex, Base.setindex!, Base.size
-
-Base.getindex(e::Episode) = getindex(e.is_terminated)
-Base.setindex!(e::Episode, x::Bool) = setindex!(e.is_terminated, x)
-
-for f in (:push!, :append!)
-    @eval function Base.$f(t::Episode, x)
-        if t.is_terminated[]
-            throw(ArgumentError("The episode is already flagged as done!"))
-        else
-            $f(t.traces, x)
-        end
-    end
-end
-
-function Base.pop!(t::Episode)
-    pop!(t.traces)
-    t.is_terminated[] = false
-end
-
-Base.pushfirst!(t::Episode, x) = pushfirst!(t.traces, x)
-Base.prepend!(t::Episode, x) = prepend!(t.traces, x)
-Base.popfirst!(t::Episode) = popfirst!(t.traces)
-
-function Base.empty!(t::Episode)
-    empty!(t.traces)
-    t.is_terminated[] = false
-end
-
-#####
-
-"""
-    Episodes(init)
-
-A container for multiple [`Episode`](@ref)s. `init` is a parameterness function which return an empty [`Episode`](@ref).
-"""
-struct Episodes{names,E,T} <: AbstractTraces{names,E}
-    init::Any
-    episodes::Vector{T}
-    inds::Vector{Tuple{Int,Int}}
-end
-
-Adapt.adapt_structure(to, t::Episodes) =
-    Episodes() do
-        Adapt.adapt_structure(to, t.init())
-    end
-
-function Episodes(init)
-    x = init()
-    T = typeof(x)
-    @assert x isa Episode
-    @assert length(x) == 0
-    names, E = eltype(x).parameters
-    Episodes{names,E,T}(init, [x], Tuple{Int,Int}[])
-end
-
-Base.size(e::Episodes) = size(e.inds)
-
-Base.setindex!(e::Episodes, is_terminated::Bool) = setindex!(e.episodes[end], is_terminated)
-
-Base.getindex(e::Episodes) = getindex(e.episodes[end])
-
-function Base.getindex(e::Episodes, I::Int)
-    i, j = e.inds[I]
-    e.episodes[i][j]
-end
-
-function Base.getindex(e::Episodes{names}, I) where {names}
-    NamedTuple{names}(
-        lazy_stack(
-            map(I) do i
-                x, y = e.inds[i]
-                e.episodes[x][n][y]
-            end
-        )
-        for n in names
-    )
-end
-
-function Base.getindex(e::Episodes, I::Symbol)
-    @warn "The returned trace is a vector of partitions instead of a continuous view" maxlog = 1
-    map(x -> x[I], e.episodes)
-end
-
-function Base.push!(e::Episodes, x::Episode)
-    # !!! note we do not check whether the last Episode is terminated or not here
-    push!(e.episodes, x)
-    for i in 1:length(x)
-        push!(e.inds, (length(e.episodes), i))
-    end
-end
-
-function Base.append!(e::Episodes, xs::AbstractVector{<:Episode})
-    # !!! note we do not check whether each Episode is terminated or not here
-    for x in xs
-        push!(e, x)
-    end
-end
-
-function Base.push!(e::Episodes, x::NamedTuple)
-    if isempty(e.episodes) || e.episodes[end][]
-        episode = e.init()
-        push!(episode, x)
-        push!(e, episode)
-    else
-        n_pre = length(e.episodes[end])
-        push!(e.episodes[end], x)
-        n_post = length(e.episodes[end])
-        # this is to support partial inserting
-        if n_post - n_pre == 1
-            push!(e.inds, (length(e.episodes), length(e.episodes[end])))
-        end
-    end
-end
-
-#####
 struct Traces{names,T,N,E} <: AbstractTraces{names,E}
     traces::T
     inds::NamedTuple{names,NTuple{N,Int}}
@@ -348,6 +221,7 @@ function Base.:(+)(t1::Traces{k1,T1,N1,E1}, t2::Traces{k2,T2,N2,E2}) where {k1,T
 end
 
 Base.size(t::Traces) = (mapreduce(length, min, t.traces),)
+capacity(t::Traces) = minimum(map(idx->capacity(t.traces[idx]),t.inds))
 
 for f in (:push!, :pushfirst!)
     @eval function Base.$f(ts::Traces, xs::NamedTuple)

@@ -1,8 +1,9 @@
 using ReinforcementLearningTrajectories
-using CircularArrayBuffers
+using CircularArrayBuffers, DataStructures
 using Test
 using CUDA
 using Adapt
+import ReinforcementLearningTrajectories.StatsBase.sample
 
 struct TestAdaptor end
 
@@ -17,4 +18,5 @@ Adapt.adapt_storage(to::TestAdaptor, x) = CUDA.functional() ? CUDA.cu(x) : x
     include("controllers.jl")
     include("trajectories.jl")
     include("normalization.jl")
+    include("episodes.jl")
 end

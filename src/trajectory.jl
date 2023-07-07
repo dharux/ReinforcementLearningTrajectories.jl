@@ -20,13 +20,20 @@ Supported methoes are:
 - `take!(t::Trajectory)`, take a batch of experiences from the trajectory. Note
   that `nothing` may be returned, indicating that it's not ready to sample yet.
 """
-Base.@kwdef struct Trajectory{C,S,T}
+Base.@kwdef struct Trajectory{C,S,T,F}
     container::C
     sampler::S = DummySampler()
     controller::T = InsertSampleRatioController()
-    transformer::Any = identity
+    transformer::F = identity
 
-    Trajectory(c::C, s::S, t::T=InsertSampleRatioController(), f=identity) where {C,S,T} = new{C,S,T}(c, s, t, f)
+    function Trajectory(c::C, s::S, t::T=InsertSampleRatioController(), f=identity) where {C,S,T}
+        if c isa EpisodesBuffer
+            new{C,S,T,typeof(f)}(c, s, t, f)
+        else
+            eb = EpisodesBuffer(c)
+            new{typeof(eb),S,T,typeof(f)}(eb, s, t, f)
+        end
+    end
 
     function Trajectory(container::C, sampler::S, controller::T, transformer) where {C,S,T<:AsyncInsertSampleRatioController}
         t = Threads.@spawn while true
@@ -45,7 +52,7 @@ Base.@kwdef struct Trajectory{C,S,T}
 
                 if controller.n_inserted >= controller.threshold
                     if controller.n_sampled <= (controller.n_inserted - controller.threshold) * controller.ratio
-                        batch = sample(sampler, container)
+                        batch = StatsBase.sample(sampler, container)
                         put!(controller.ch_out, batch)
                         controller.n_sampled += 1
                     end
@@ -55,7 +62,8 @@ Base.@kwdef struct Trajectory{C,S,T}
 
         bind(controller.ch_in, t)
         bind(controller.ch_out, t)
-        new{C,S,T}(container, sampler, controller, transformer)
+        
+        new{C,S,T,typeof(transformer)}(container, sampler, controller, transformer)
     end
 end
 
@@ -97,6 +105,11 @@ function Base.push!(t::Trajectory, x)
     on_insert!(t, x)
 end
 
+function Base.push!(t::Trajectory, x::PartialNamedTuple) #used at EpisodesBuffer
+    push!(t.container, x)
+    on_insert!(t, x.namedtuple)
+end
+
 on_insert!(t::Trajectory, x) = on_insert!(t, 1, x)
 on_insert!(t::Trajectory, n::Int, x) = on_insert!(t.controller, n, x)
 
@@ -107,7 +120,7 @@ on_insert!(t::Trajectory, n::Int, x) = on_insert!(t.controller, n, x)
 SampleGenerator(t::Trajectory) = SampleGenerator(t.sampler, t.container) #currently not in use
 
 on_sample!(t::Trajectory) = on_sample!(t.controller)
-sample(t::Trajectory) = sample(t.sampler, t.container)
+StatsBase.sample(t::Trajectory) = StatsBase.sample(t.sampler, t.container)
 
 """
 Keep sampling batches from the trajectory until the trajectory is not ready to
@@ -118,7 +131,7 @@ iter(t::Trajectory) = Iterators.takewhile(_ -> on_sample!(t), Iterators.cycle(Sa
 #The use of iterate(::SampleGenerator) has been suspended in v0.1.8 due to a significant drop in performance. 
 function Base.iterate(t::Trajectory, args...)
     if length(t.container) > 0 && on_sample!(t)
-        sample(t), nothing
+        StatsBase.sample(t), nothing
     else
         nothing
     end
@@ -127,3 +140,6 @@ Base.IteratorSize(t::Trajectory) = Base.IteratorSize(iter(t))
 
 Base.iterate(t::Trajectory{<:Any,<:Any,<:AsyncInsertSampleRatioController}, args...) = iterate(t.controller.ch_out, args...)
 Base.IteratorSize(t::Trajectory{<:Any,<:Any,<:AsyncInsertSampleRatioController}) = Base.IteratorSize(t.controller.ch_out)
+
+Base.keys(t::Trajectory) = keys(t.container)
+Base.haskey(t::Trajectory, k) = k in keys(t)

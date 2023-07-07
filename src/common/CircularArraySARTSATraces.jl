@@ -1,8 +1,8 @@
-export CircularArraySARTTraces
+export CircularArraySARTSATraces
 
-import CircularArrayBuffers
+import CircularArrayBuffers.CircularArrayBuffer
 
-const CircularArraySARTTraces = Traces{
+const CircularArraySARTSATraces = Traces{
     SS′AA′RT,
     <:Tuple{
         <:MultiplexTraces{SS′,<:Trace{<:CircularArrayBuffer}},
@@ -12,7 +12,7 @@ const CircularArraySARTTraces = Traces{
     }
 }
 
-function CircularArraySARTTraces(;
+function CircularArraySARTSATraces(;
     capacity::Int,
     state=Int => (),
     action=Int => (),
@@ -24,12 +24,12 @@ function CircularArraySARTTraces(;
     reward_eltype, reward_size = reward
     terminal_eltype, terminal_size = terminal
 
-    MultiplexTraces{SS′}(CircularArrayBuffer{state_eltype}(state_size..., capacity + 1)) +
-    MultiplexTraces{AA′}(CircularArrayBuffer{action_eltype}(action_size..., capacity + 1)) +
+    MultiplexTraces{SS′}(CircularArrayBuffer{state_eltype}(state_size..., capacity+1)) +
+    MultiplexTraces{AA′}(CircularArrayBuffer{action_eltype}(action_size..., capacity+1)) +
     Traces(
         reward=CircularArrayBuffer{reward_eltype}(reward_size..., capacity),
         terminal=CircularArrayBuffer{terminal_eltype}(terminal_size..., capacity),
     )
 end
 
-CircularArrayBuffers.capacity(t::CircularArraySARTTraces) = CircularArrayBuffers.capacity(t.traces[end])
+CircularArrayBuffers.capacity(t::CircularArraySARTSATraces) = CircularArrayBuffers.capacity(minimum(map(capacity,t.traces)))

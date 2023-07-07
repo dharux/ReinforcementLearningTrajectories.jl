@@ -33,3 +33,5 @@ function CircularArraySLARTTraces(;
         terminal=CircularArrayBuffer{terminal_eltype}(terminal_size..., capacity),
     )
 end
+
+CircularArrayBuffers.capacity(t::CircularArraySLARTTraces) = CircularArrayBuffers.capacity(minimum(map(capacity,t.traces)))
