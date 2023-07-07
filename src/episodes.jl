@@ -121,22 +121,6 @@ function Base.push!(eb::EpisodesBuffer, xs::PartialNamedTuple) #wrap a NamedTupl
     eb.sampleable_inds[end-1] = 1 #completes the episode trajectory.
 end
 
-#= currently unsupported due to lack of support of appending a named tuple to traces with multiplextraces.
-for f in (:append!,) #append! assumes that complete episodes coming from distributed agents will be appended.
-    @eval function Base.$f(es::EpisodesBuffer, xs::EpisodesBuffer)
-        cap = capacity(es.traces)
-        for ep in xs.episodes
-            n = length(ep)
-            $f(es.traces, xs.traces[ep.startidx:ep.startidx+n-1])
-            es.length += n
-            trim(es, n)
-            old_pointer = es.pointer
-            push!(es.episodes, Episode(old_pointer, (es.pointer % cap) + n - 1 , n, true))
-            es.pointer = ((es.pointer % cap) + n - 1 ) % cap + 1
-        end
-    end
-end=#
-
 for f in (:pop!, :popfirst!)
     @eval function Base.$f(es::EpisodesBuffer)
         $f(es.episodes_lengths)
