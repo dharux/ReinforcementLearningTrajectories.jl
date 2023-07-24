@@ -184,7 +184,7 @@ function StatsBase.sample(nbs::NStepBatchSampler, ts, ::Val{SS′ART}, inds)
         s = ts[:state][inds]
         s′ = ts[:next_state][inds.+(nbs.n-1)]
     else
-        s = ts[:state][[x + i for i in -nbs.stack_size+1:0, x in inds]]
+        s = ts[:state][[x + i + 1 for i in -nbs.stack_size+1:0, x in inds]]
         s′ = ts[:next_state][[x + nbs.n - 1 + i for i in -nbs.stack_size+1:0, x in inds]]
     end
 

@@ -135,5 +135,29 @@ end
     @test xs3.reward[1] ≈ 3 + γ * 4  # terminated at step 4
     @test xs3.reward[2] ≈ 5 + γ * (6 + γ * 7)
     @test xs3.reward[3] ≈ 7 + γ * (8 + γ * 9)
+
+    @testset "CircularPrioritizedTraces with NStepBatchSampler" begin
+        γ = 0.9
+        n_stack = 2
+        n_horizon = 3
+        batch_size = 4
+    
+        t = CircularPrioritizedTraces(
+            CircularArraySARTSATraces(;
+                capacity=10
+            ),
+            default_priority=1.0f0
+        )
+        s = NStepBatchSampler(n=n_horizon, γ=γ, stack_size=n_stack, batch_size=batch_size)
+        push!(t, (state = 1, action = true))
+        for i = 1:9
+            push!(t, (state = i+1, action = true, reward = i, terminal = false))
+        end
+    
+        xs = RLTrajectories.StatsBase.sample(s, t)
+        @test haskey(xs, :state)
+        @test haskey(xs, :priority)
+        @test haskey(xs, :key)
+    end    
 end
 #! format: on
