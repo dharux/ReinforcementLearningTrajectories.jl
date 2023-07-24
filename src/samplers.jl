@@ -229,3 +229,12 @@ function StatsBase.sample(s::NStepBatchSampler{names}, e::EpisodesBuffer{<:Any, 
         StatsBase.sample(s, t.traces, Val(names), inds)
     )
 end
+
+function StatsBase.sample(s::NStepBatchSampler{names}, t::CircularPrioritizedTraces}) where {names}
+    inds, priorities = rand(s.rng, t.priorities, s.batch_size)
+
+    merge(
+        (key=t.keys[inds], priority=priorities),
+        StatsBase.sample(s, t.traces, Val(names), inds)
+    )
+end
