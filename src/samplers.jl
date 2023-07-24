@@ -209,15 +209,6 @@ function StatsBase.sample(s::NStepBatchSampler, ts, ::Val{SS′L′ART}, inds)
     NamedTuple{SSLART}(map(collect, (s, s′, l, a, r, t)))
 end
 
-function StatsBase.sample(s::NStepBatchSampler{names}, e::EpisodesBuffer{<:Any, <:Any, <:CircularPrioritizedTraces})
-    t = e.traces
-    st = deepcopy(t.priorities)
-    st .*= e.sampleable_inds[1:end-1] #temporary sumtree that puts 0 priority to non sampleable indices.
-    inds, priorities = rand(s.rng, st, s.batch_size)
-
-    NamedTuple{(:key, :priority, names...)}((t.keys[inds], priorities, map(x -> collect(t.traces[x][inds]), names)...))
-end
-
 function StatsBase.sample(s::NStepBatchSampler{names}, e::EpisodesBuffer{<:Any, <:Any, <:CircularPrioritizedTraces}) where {names}
     t = e.traces
     st = deepcopy(t.priorities)
