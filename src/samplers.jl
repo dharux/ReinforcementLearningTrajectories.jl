@@ -184,7 +184,7 @@ function StatsBase.sample(nbs::NStepBatchSampler, ts, ::Val{SS′ART}, inds)
         s = ts[:state][inds]
         s′ = ts[:next_state][inds.+(nbs.n-1)]
     else
-        s = ts[:state][[x + i + 1 for i in -nbs.stack_size+1:0, x in inds]]
+        s = ts[:state][[x + i for i in -nbs.stack_size+1:0, x in inds]]
         s′ = ts[:next_state][[x + nbs.n - 1 + i for i in -nbs.stack_size+1:0, x in inds]]
     end
 
@@ -214,15 +214,6 @@ function StatsBase.sample(s::NStepBatchSampler{names}, e::EpisodesBuffer{<:Any, 
     st = deepcopy(t.priorities)
     st .*= e.sampleable_inds[1:end-1] #temporary sumtree that puts 0 priority to non sampleable indices.
     inds, priorities = rand(s.rng, st, s.batch_size)
-
-    merge(
-        (key=t.keys[inds], priority=priorities),
-        StatsBase.sample(s, t.traces, Val(names), inds)
-    )
-end
-
-function StatsBase.sample(s::NStepBatchSampler{names}, t::CircularPrioritizedTraces) where {names}
-    inds, priorities = rand(s.rng, t.priorities, s.batch_size)
 
     merge(
         (key=t.keys[inds], priority=priorities),
