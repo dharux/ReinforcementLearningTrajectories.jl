@@ -39,8 +39,21 @@ struct PartialNamedTuple{T}
     namedtuple::T
 end
 
+# Capacity of an EpisodesBuffer is the capacity of the underlying traces + 1 for certain cases
+function is_capacity_plus_one(traces::AbstractTraces)
+    if any(t->t isa MultiplexTraces, traces.traces)
+        # MultiplexTraces buffer next_state and next_action, so we need to add one to the capacity
+        return true
+    elseif traces isa CircularPrioritizedTraces
+        # CircularPrioritizedTraces buffer next_state and next_action, so we need to add one to the capacity
+        return true
+    else
+        false
+    end
+end
+
 function EpisodesBuffer(traces::AbstractTraces)
-    cap = any(t->t isa MultiplexTraces, traces.traces) ? capacity(traces) + 1 : capacity(traces)
+    cap = is_capacity_plus_one(traces) ? capacity(traces) + 1 : capacity(traces)
     @assert isempty(traces) "EpisodesBuffer must be initialized with empty traces."
     if !isinf(cap)
         legalinds =  CircularBuffer{Bool}(cap)

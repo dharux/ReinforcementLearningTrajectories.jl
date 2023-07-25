@@ -60,3 +60,5 @@ function Base.getindex(ts::CircularPrioritizedTraces, s::Symbol)
 end
 
 Base.getindex(t::CircularPrioritizedTraces{<:Any,names}, i) where {names} = NamedTuple{names}(map(k -> t[k][i], names))
+
+capacity(t::CircularPrioritizedTraces) = ReinforcementLearningTrajectories.capacity(t.traces)

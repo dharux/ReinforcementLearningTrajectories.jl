@@ -137,3 +137,35 @@ end
     @test xs3.reward[3] ≈ 7 + γ * (8 + γ * 9)
 end
 #! format: on
+
+@testset "Trajectory with CircularArraySARTSTraces and NStepBatchSampler" begin
+    n=1
+    γ=0.99f0
+
+    t = Trajectory(
+        container=CircularPrioritizedTraces(
+            CircularArraySARTSTraces(
+                capacity=5,
+                state=Float32 => (4,),
+            );
+            default_priority=100.0f0
+        ),
+        sampler=NStepBatchSampler{SS′ART}(
+            n=n,
+            γ=γ,
+            batch_size=32,
+        ),
+        controller=InsertSampleRatioController(
+            threshold=100,
+            n_inserted=-1
+        )
+    )
+
+    push!(t, (state = 1, action = true))
+    for i = 1:9
+        push!(t, (state = i+1, action = true, reward = i, terminal = false))
+    end
+
+    b = RLTrajectories.StatsBase.sample(t)
+    @test haskey(b, :priority)
+end
