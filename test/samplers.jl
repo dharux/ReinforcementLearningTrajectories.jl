@@ -145,7 +145,7 @@ end
     t = Trajectory(
         container=CircularPrioritizedTraces(
             CircularArraySARTSTraces(
-                capacity=1000,
+                capacity=5,
                 state=Float32 => (4,),
             );
             default_priority=100.0f0
