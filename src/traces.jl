@@ -128,15 +128,18 @@ end
 
 Adapt.adapt_structure(to, t::MultiplexTraces{names}) where {names} = MultiplexTraces{names}(Adapt.adapt_structure(to, t.trace))
 
-function Base.getindex(t::MultiplexTraces{names}, k::Symbol) where {names}
-    a, b = names
-    if k == a
-        RelativeTrace{0,-1}(convert(AbstractTrace, t.trace))
-    elseif k == b
-        RelativeTrace{1,0}(convert(AbstractTrace, t.trace))
+Base.getindex(t::MultiplexTraces{names}, k::Symbol) where {names} = _getindex(t, Val(k))
+
+@generated function _getindex(t::MultiplexTraces{names}, ::Val{k}) where {names,k}
+    ex = :()
+    if QuoteNode(names[1]) == QuoteNode(k)
+        ex = :(RelativeTrace{0,-1}(t.trace))
+    elseif QuoteNode(names[2]) == QuoteNode(k)
+        ex = :(RelativeTrace{1,0}(t.trace))
     else
-        throw(ArgumentError("unknown trace name: $k"))
+        ex = :(throw(ArgumentError("unknown trace name: $k")))
     end
+    return :($ex)
 end
 
 Base.getindex(t::MultiplexTraces{names}, I::Int) where {names} = NamedTuple{names}((t.trace[I], t.trace[I+1]))
@@ -180,12 +183,16 @@ function Traces(; kw...)
 end
 
 
-function Base.getindex(ts::Traces, s::Symbol)
+Base.getindex(ts::Traces, s::Symbol) = Base.getindex(ts::Traces, Val(s))
+
+function Base.getindex(ts::Traces, ::Val{s}) where {s}
     t = _gettrace(ts, Val(s))
     if t isa AbstractTrace
         t
-    else
+    elseif t isa MultiplexTraces
         t[s]
+    else
+        throw(ArgumentError("unknown trace name: $s"))
     end
 end
 
