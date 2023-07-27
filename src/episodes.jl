@@ -107,7 +107,14 @@ pad!(vect::Vector{T}) where {T} = push!(vect, zero(T))
     return :($ex)
 end
 
-fill_multiplex(es::EpisodesBuffer) = fill_multiplex(es.traces)
+# This function is currently unoptimized, could be optimized by using a generated function.
+function fill_multiplex(es::EpisodesBuffer)
+    for trace in es.traces.traces
+        if !(trace isa MultiplexTraces)
+            push!(trace, last(trace)) #push a duplicate of last element as a dummy element, should never be sampled.
+        end
+    end
+end
 
 fill_multiplex(es::EpisodesBuffer{<:Any,<:Any,<:CircularPrioritizedTraces}) = fill_multiplex(es.traces.traces)
 
