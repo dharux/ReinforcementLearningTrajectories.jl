@@ -98,7 +98,7 @@ pad!(vect::Vector{T}) where {T} = push!(vect, zero(T))
     i = 1
     ex = :()
     for tr in Trs.parameters
-        if (tr <: Trace)
+        if !(tr <: MultiplexTraces)
             #push a duplicate of last element as a dummy element, should never be sampled.
             ex = :($ex; pad!(trace_tuple.traces[$i]))
         end
