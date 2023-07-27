@@ -190,7 +190,7 @@ function Base.getindex(ts::Traces, ::Val{s}) where {s}
     if t isa AbstractTrace
         t
     elseif t isa MultiplexTraces
-        t[s]
+        _getindex(t, Val(s))
     else
         throw(ArgumentError("unknown trace name: $s"))
     end
@@ -215,7 +215,7 @@ end
 @generated function Base.getindex(t::Traces{names}, i) where {names}
     ex = :(NamedTuple{$(names)}($(Expr(:tuple))))
     for k in names
-        push!(ex.args[2].args, :(t[$(QuoteNode(k))][i]))
+        push!(ex.args[2].args, :(t[Val($(QuoteNode(k)))][i]))
     end
     return ex
 end
