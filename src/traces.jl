@@ -189,7 +189,13 @@ function Base.getindex(ts::Traces, s::Symbol)
     end
 end
 
-Base.getindex(t::Traces{names}, i) where {names} = NamedTuple{names}(map(k -> t[k][i], names))
+@generated function Base.getindex(t::Traces{names}, i) where {names}
+    ex = :(NamedTuple{$(names)}($(Expr(:tuple))))
+    for k in names
+        push!(ex.args[2].args, :(t[$(QuoteNode(k))][i]))
+    end
+    return ex
+end
 
 function Base.:(+)(t1::AbstractTraces{k1,T1}, t2::AbstractTraces{k2,T2}) where {k1,k2,T1,T2}
     ks = (k1..., k2...)
@@ -223,7 +229,7 @@ end
 Base.size(t::Traces) = (mapreduce(length, min, t.traces),)
 capacity(t::Traces) = minimum(map(idx->capacity(t.traces[idx]),t.inds))
 
-@eval @generated function Base.push!(ts::Traces, xs::NamedTuple{N,T}) where {N,T}
+@generated function Base.push!(ts::Traces, xs::NamedTuple{N,T}) where {N,T}
     ex = :()
     for n in N
         ex = :($ex; push!(ts, Val($(QuoteNode(n))), xs.$n))
@@ -231,7 +237,7 @@ capacity(t::Traces) = minimum(map(idx->capacity(t.traces[idx]),t.inds))
     return :($ex)
 end
 
-@eval @generated function Base.pushfirst!(ts::Traces, xs::NamedTuple{N,T}) where {N,T}
+@generated function Base.pushfirst!(ts::Traces, xs::NamedTuple{N,T}) where {N,T}
     ex = :()
     for n in N
         ex = :($ex; pushfirst!(ts, Val($(QuoteNode(n))), xs.$n))
