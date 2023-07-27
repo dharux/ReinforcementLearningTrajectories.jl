@@ -181,12 +181,28 @@ end
 
 
 function Base.getindex(ts::Traces, s::Symbol)
-    t = ts.traces[ts.inds[s]]
+    t = _gettrace(ts, Val(s))
     if t isa AbstractTrace
         t
     else
         t[s]
     end
+end
+
+@generated function _gettrace(ts::Traces{names,Trs,N,E}, ::Val{k}) where {names,Trs,N,E,k}
+    index_ = build_trace_index(names, Trs)
+    # Generate code, i.e. find the correct index for a given key
+    ex = :()
+    
+    for name in names
+        if QuoteNode(name) == QuoteNode(k)
+            index_element = index_[k]
+            ex = :(ts.traces[$index_element])
+            break
+        end
+    end
+
+    return :($ex)
 end
 
 @generated function Base.getindex(t::Traces{names}, i) where {names}

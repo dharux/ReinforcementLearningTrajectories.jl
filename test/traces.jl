@@ -148,7 +148,14 @@ end
     push!(t1, Val(:reward), 5)
     @test t1[:reward][1] == 5
 
+    @test size(Base.getindex(t1, :reward)) == (1,)
+    @test size(Base.getindex(t1, 1).state) == (2,3)
+
+
     t2 = Traces(; a=[2, 3], b=[false, true])
     push!(t2, Val(:a), 5)
     @test t2[:a][3] == 5
+
+    @test size(Base.getindex(t2, :a)) == (3,)
+    @test Base.getindex(t2, 1) == (; a = 2, b= false)
 end
