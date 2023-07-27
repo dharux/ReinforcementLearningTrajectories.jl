@@ -240,53 +240,32 @@ end
 end
 
 @generated function Base.pushfirst!(ts::Traces{names,Trs,N,E}, ::Val{k}, v) where {names,Trs,N,E,k}
-    i = 1
-    ex = :()
-    for tr in Trs.parameters[1]
-        if QuoteNode(tr) == QuoteNode(k)
-            ex = :(pushfirst!(ts.traces[$i], Val(k), v))
-            break
-        end
-        i += 1
-    end
-    return :($ex)
-end
-
-@generated function Base.push!(ts::Traces{names,Trs,N,E}, ::Val{k}, v) where {names,Trs,N,E,k}
-    # TODO: Drop index element from struct, is no longer needed...
-    # TODO: refactor the index builder in to separate function, add tests
-    # Build index
-    index_ = []
-    i = 1
-    if Trs <: NamedTuple
-        # Handle simple Traces
-        index_ = 1:length(names)
-    elseif Trs <: Tuple
-        # Handle MultiplexTraces
-        for tr in Trs.parameters
-            if tr <: MultiplexTraces
-                push!(index_, i)
-                push!(index_, i)
-            else
-                push!(index_, i)
-            end
-            i += 1
-        end
-    else
-        error("Traces store is neither a tuple nor a named tuple!")
-    end
-
+    index_ = build_trace_index(names, Trs)
     # Generate code, i.e. find the correct index for a given key
-    j = 1
     ex = :()
     
     for name in names
         if QuoteNode(name) == QuoteNode(k)
-            index_element = index_[j]
-            ex = :(push!(ts.traces[$index_element], Val(k), v))
+            index_element = index_[k]
+            ex = :(pushfirst!(ts.traces[$index_element], Val($(QuoteNode(k))), v))
             break
         end
-        j += 1
+    end
+
+    return :($ex)
+end
+
+@generated function Base.push!(ts::Traces{names,Trs,N,E}, ::Val{k}, v) where {names,Trs,N,E,k}
+    index_ = build_trace_index(names, Trs)
+    # Generate code, i.e. find the correct index for a given key
+    ex = :()
+    
+    for name in names
+        if QuoteNode(name) == QuoteNode(k)
+            index_element = index_[k]
+            ex = :(push!(ts.traces[$index_element], Val($(QuoteNode(k))), v))
+            break
+        end
     end
 
     return :($ex)
@@ -322,4 +301,39 @@ for f in (:pop!, :popfirst!, :empty!)
             $f(t)
         end
     end
+end
+
+
+"""
+    build_trace_index(names::NTuple, traces_signature::DataType)
+
+Take type signature from `Traces` and build a mapping from trace name to trace index
+"""
+function build_trace_index(names::NTuple, traces_signature::DataType)
+    # Build index
+    index_ = Dict()
+
+    if traces_signature <: NamedTuple
+        # Handle simple Traces
+        index_ = Dict(name => i for (name, i) ∈ zip(names, 1:length(names)))
+    elseif traces_signature <: Tuple
+        # Handle MultiplexTracesup
+        i = 1
+        j = 1
+        trace_list = traces_signature.parameters
+        for tr in trace_list
+            if tr <: MultiplexTraces
+                index_[names[i]] = j
+                i += 1
+                index_[names[i]] = j
+            else
+                index_[names[i]] = j
+            end
+            i += 1
+            j += 1
+        end
+    else
+        error("Traces store is neither a tuple nor a named tuple!")
+    end
+    return index_
 end
