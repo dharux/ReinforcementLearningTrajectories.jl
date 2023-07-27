@@ -223,14 +223,23 @@ end
 Base.size(t::Traces) = (mapreduce(length, min, t.traces),)
 capacity(t::Traces) = minimum(map(idx->capacity(t.traces[idx]),t.inds))
 
-for f in (:push!, :pushfirst!)
-    @eval @generated function Base.$f(ts::Traces, xs::NamedTuple{N,T}) where {N,T}
-        ex = :()
-        for n in N
-            ex = :($ex; $f(ts, Val($(QuoteNode(n))), xs.$n))
-        end
-        return :($ex)
+@eval @generated function Base.push!(ts::Traces, xs::NamedTuple{N,T}) where {N,T}
+    ex = :()
+    for n in N
+        ex = :($ex; push!(ts, Val($(QuoteNode(n))), xs.$n))
     end
+    return :($ex)
+end
+
+@eval @generated function Base.pushfirst!(ts::Traces, xs::NamedTuple{N,T}) where {N,T}
+    ex = :()
+    for n in N
+        ex = :($ex; pushfirst!(ts, Val($(QuoteNode(n))), xs.$n))
+    end
+    return :($ex)
+end
+
+for f in (:push!, :pushfirst!)
 
     @eval function Base.$f(ts::Traces, ::Val{k}, v) where {k}
         $f(ts.traces[ts.inds[k]], Val(k), v)
