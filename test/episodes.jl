@@ -28,7 +28,7 @@ using Test
         @test eb.episodes_lengths[end] == 0
         @test eb.step_numbers[end] == 1
         @test eb.sampleable_inds == [1,1,1,1,1,0,0]
-        @test eb[6][:reward] == 5 #6 is not a valid index, the reward there is dummy duplicate of previous (5)
+        @test eb[6][:reward] == 0 #6 is not a valid index, the reward there is filled as zero
         ep2_len = 0
         for (j,i) = enumerate(8:11)
             ep2_len += 1
@@ -113,7 +113,7 @@ using Test
         @test eb.episodes_lengths[end] == 0
         @test eb.step_numbers[end] == 1
         @test eb.sampleable_inds == [1,1,1,1,1,0,0]
-        @test eb[6][:reward] == 5 #6 is not a valid index, the reward there is dummy duplicate of previous (5)
+        @test eb[6][:reward] == 0 #6 is not a valid index, the reward there is dummy, filled as zero
         ep2_len = 0
         for (j,i) = enumerate(8:11)
             ep2_len += 1

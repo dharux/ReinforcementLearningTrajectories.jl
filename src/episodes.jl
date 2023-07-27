@@ -90,31 +90,40 @@ function pad!(trace::Trace)
     return nothing
 end
 
-pad!(buf::CircularVectorBuffer) = pad!(buf.buffer)
+pad!(buf::CircularVectorBuffer{T}) where {T} = push!(buf, zero(T))
 pad!(vect::Vector{T}) where {T} = push!(vect, zero(T))
 
 #push a duplicate of last element as a dummy element for all 'trace' objects, ignores multiplex traces, should never be sampled.
 @generated function fill_multiplex(trace_tuple::Traces{names,Trs,N,E}) where {names,Trs,N,E}
-    i = 1
+    traces_signature = Trs
     ex = :()
-    for tr in Trs.parameters
-        if !(tr <: MultiplexTraces)
-            #push a duplicate of last element as a dummy element, should never be sampled.
-            ex = :($ex; pad!(trace_tuple.traces[$i]))
+    i = 1
+
+    if traces_signature <: NamedTuple
+        # Handle 'simple' (non-multiplexed) Traces
+        for tr in traces_signature.parameters[1]
+            ex = :($ex; pad!(trace_tuple.traces[$i])) # pad everything
+            i += 1
         end
-        i += 1
+    elseif traces_signature <: Tuple
+        traces_signature = traces_signature.parameters
+        
+    
+        for tr in traces_signature
+            if !(tr <: MultiplexTraces)
+                #push a duplicate of last element as a dummy element, should never be sampled.
+                ex = :($ex; pad!(trace_tuple.traces[$i]))
+            end
+            i += 1
+        end
+    else
+        error("Traces store is neither a tuple nor a named tuple!")
     end
+
     return :($ex)
 end
 
-# This function is currently unoptimized, could be optimized by using a generated function.
-function fill_multiplex(es::EpisodesBuffer)
-    for trace in es.traces.traces
-        if !(trace isa MultiplexTraces)
-            push!(trace, last(trace)) #push a duplicate of last element as a dummy element, should never be sampled.
-        end
-    end
-end
+fill_multiplex(es::EpisodesBuffer) = fill_multiplex(es.traces)
 
 fill_multiplex(es::EpisodesBuffer{<:Any,<:Any,<:CircularPrioritizedTraces}) = fill_multiplex(es.traces.traces)
 
