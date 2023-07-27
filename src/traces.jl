@@ -239,12 +239,60 @@ end
     return :($ex)
 end
 
-for f in (:push!, :pushfirst!)
+@generated function Base.pushfirst!(ts::Traces{names,Trs,N,E}, ::Val{k}, v) where {names,Trs,N,E,k}
+    i = 1
+    ex = :()
+    for tr in Trs.parameters[1]
+        if QuoteNode(tr) == QuoteNode(k)
+            ex = :(pushfirst!(ts.traces[$i], Val(k), v))
+            break
+        end
+        i += 1
+    end
+    return :($ex)
+end
 
-    @eval function Base.$f(ts::Traces, ::Val{k}, v) where {k}
-        $f(ts.traces[ts.inds[k]], Val(k), v)
+@generated function Base.push!(ts::Traces{names,Trs,N,E}, ::Val{k}, v) where {names,Trs,N,E,k}
+    # TODO: Drop index element from struct, is no longer needed...
+    # TODO: refactor the index builder in to separate function, add tests
+    # Build index
+    index_ = []
+    i = 1
+    if Trs <: NamedTuple
+        # Handle simple Traces
+        index_ = 1:length(names)
+    elseif Trs <: Tuple
+        # Handle MultiplexTraces
+        for tr in Trs.parameters
+            if tr <: MultiplexTraces
+                push!(index_, i)
+                push!(index_, i)
+            else
+                push!(index_, i)
+            end
+            i += 1
+        end
+    else
+        error("Traces store is neither a tuple nor a named tuple!")
     end
 
+    # Generate code, i.e. find the correct index for a given key
+    j = 1
+    ex = :()
+    
+    for name in names
+        if QuoteNode(name) == QuoteNode(k)
+            index_element = index_[j]
+            ex = :(push!(ts.traces[$index_element], Val(k), v))
+            break
+        end
+        j += 1
+    end
+
+    return :($ex)
+end
+
+for f in (:push!, :pushfirst!)
     @eval function Base.$f(t::AbstractTrace, ::Val{k}, v) where {k}
         $f(t, v)
     end
