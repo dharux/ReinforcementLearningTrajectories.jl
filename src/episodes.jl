@@ -85,20 +85,31 @@ ispartial_insert(traces::Traces, xs) = length(xs) < length(traces.traces) #this 
 ispartial_insert(es::EpisodesBuffer, xs) = ispartial_insert(es.traces, xs)
 ispartial_insert(traces::CircularPrioritizedTraces, xs) = ispartial_insert(traces.traces, xs)
 
-function fill_multiplex(es::EpisodesBuffer)
-    for trace in es.traces.traces
-        if !(trace isa MultiplexTraces)
-            push!(trace, last(trace)) #push a duplicate of last element as a dummy element, should never be sampled.
-        end
-    end
+function pad!(trace::Trace)
+    pad!(trace.parent)
+    return nothing
 end
-function fill_multiplex(es::EpisodesBuffer{<:Any,<:Any,<:CircularPrioritizedTraces})
-    for trace in es.traces.traces.traces
-        if !(trace isa MultiplexTraces)
-            push!(trace, last(trace)) #push a duplicate of last element as a dummy element, should never be sampled.
+
+pad!(buf::CircularVectorBuffer) = pad!(buf.buffer)
+pad!(vect::Vector{T}) where {T} = push!(vect, zero(T))
+
+#push a duplicate of last element as a dummy element for all 'trace' objects, ignores multiplex traces, should never be sampled.
+@generated function fill_multiplex(trace_tuple::Traces{names,Trs,N,E}) where {names,Trs,N,E}
+    i = 1
+    ex = :()
+    for tr in Trs.parameters
+        if (tr <: Trace)
+            #push a duplicate of last element as a dummy element, should never be sampled.
+            ex = :($ex; pad!(trace_tuple.traces[$i]))
         end
+        i += 1
     end
+    return :($ex)
 end
+
+fill_multiplex(es::EpisodesBuffer) = fill_multiplex(es.traces)
+
+fill_multiplex(es::EpisodesBuffer{<:Any,<:Any,<:CircularPrioritizedTraces}) = fill_multiplex(es.traces.traces)
 
 function Base.push!(eb::EpisodesBuffer, xs::NamedTuple)
     push!(eb.traces, xs)

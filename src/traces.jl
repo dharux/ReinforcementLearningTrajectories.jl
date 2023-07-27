@@ -227,7 +227,7 @@ for f in (:push!, :pushfirst!)
     @eval @generated function Base.$f(ts::Traces, xs::NamedTuple{N,T}) where {N,T}
         ex = :()
         for n in N
-            ex = :($ex; push!(ts, Val($(QuoteNode(n))), xs.$n))
+            ex = :($ex; $f(ts, Val($(QuoteNode(n))), xs.$n))
         end
         return :($ex)
     end
@@ -241,7 +241,7 @@ for f in (:push!, :pushfirst!)
     end
 
     @eval function Base.$f(t::Trace, ::Val{k}, v) where {k}
-        $f(t, v)
+        $f(t.parent, v)
     end
 
     @eval function Base.$f(ts::MultiplexTraces, ::Val{k}, v) where {k}
