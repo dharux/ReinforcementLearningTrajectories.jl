@@ -166,20 +166,18 @@ end
 
 struct Traces{names,T,N,E} <: AbstractTraces{names,E}
     traces::T
-    inds::NamedTuple{names,NTuple{N,Int}}
 end
 
 function Adapt.adapt_structure(to, t::Traces{names,T,N,E}) where {names,T,N,E}
     data = Adapt.adapt_structure(to, t.traces)
     # FIXME: `E` is not adapted here
-    Traces{names,typeof(data),length(names),E}(data, t.inds)
+    Traces{names,typeof(data),length(names),E}(data)
 end
 
 function Traces(; kw...)
     data = map(x -> convert(AbstractTrace, x), values(kw))
     names = keys(data)
-    inds = NamedTuple(k => i for (i, k) in enumerate(names))
-    Traces{names,typeof(data),length(names),typeof(values(data))}(data, inds)
+    Traces{names,typeof(data),length(names),typeof(values(data))}(data)
 end
 
 
@@ -223,30 +221,26 @@ end
 function Base.:(+)(t1::AbstractTraces{k1,T1}, t2::AbstractTraces{k2,T2}) where {k1,k2,T1,T2}
     ks = (k1..., k2...)
     ts = (t1, t2)
-    inds = (; (k => 1 for k in k1)..., (k => 2 for k in k2)...)
-    Traces{ks,typeof(ts),length(ks),Tuple{T1.types...,T2.types...}}(ts, inds)
+    Traces{ks,typeof(ts),length(ks),Tuple{T1.types...,T2.types...}}(ts)
 end
 
 function Base.:(+)(t1::AbstractTraces{k1,T1}, t2::Traces{k2,T,N,T2}) where {k1,T1,k2,T,N,T2}
     ks = (k1..., k2...)
     ts = (t1, t2.traces...)
-    inds = merge(NamedTuple(k => 1 for k in k1), map(v -> v + 1, t2.inds))
-    Traces{ks,typeof(ts),length(ks),Tuple{T1.types...,T2.types...}}(ts, inds)
+    Traces{ks,typeof(ts),length(ks),Tuple{T1.types...,T2.types...}}(ts)
 end
 
 
 function Base.:(+)(t1::Traces{k1,T,N,T1}, t2::AbstractTraces{k2,T2}) where {k1,T,N,T1,k2,T2}
     ks = (k1..., k2...)
     ts = (t1.traces..., t2)
-    inds = merge(t1.inds, (; (k => length(ts) for k in k2)...))
-    Traces{ks,typeof(ts),length(ks),Tuple{T1.types...,T2.types...}}(ts, inds)
+    Traces{ks,typeof(ts),length(ks),Tuple{T1.types...,T2.types...}}(ts)
 end
 
 function Base.:(+)(t1::Traces{k1,T1,N1,E1}, t2::Traces{k2,T2,N2,E2}) where {k1,T1,N1,E1,k2,T2,N2,E2}
     ks = (k1..., k2...)
     ts = (t1.traces..., t2.traces...)
-    inds = merge(t1.inds, map(x -> x + length(t1.traces), t2.inds))
-    Traces{ks,typeof(ts),length(ks),Tuple{E1.types...,E2.types...}}(ts, inds)
+    Traces{ks,typeof(ts),length(ks),Tuple{E1.types...,E2.types...}}(ts)
 end
 
 Base.size(t::Traces) = (mapreduce(length, min, t.traces),)
