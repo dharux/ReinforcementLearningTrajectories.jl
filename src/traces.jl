@@ -128,15 +128,18 @@ end
 
 Adapt.adapt_structure(to, t::MultiplexTraces{names}) where {names} = MultiplexTraces{names}(Adapt.adapt_structure(to, t.trace))
 
-function Base.getindex(t::MultiplexTraces{names}, k::Symbol) where {names}
-    a, b = names
-    if k == a
-        RelativeTrace{0,-1}(convert(AbstractTrace, t.trace))
-    elseif k == b
-        RelativeTrace{1,0}(convert(AbstractTrace, t.trace))
+Base.getindex(t::MultiplexTraces{names}, k::Symbol) where {names} = _getindex(t, Val(k))
+
+@generated function _getindex(t::MultiplexTraces{names}, ::Val{k}) where {names,k}
+    ex = :()
+    if QuoteNode(names[1]) == QuoteNode(k)
+        ex = :(RelativeTrace{0,-1}(t.trace))
+    elseif QuoteNode(names[2]) == QuoteNode(k)
+        ex = :(RelativeTrace{1,0}(t.trace))
     else
-        throw(ArgumentError("unknown trace name: $k"))
+        ex = :(throw(ArgumentError("unknown trace name: $k")))
     end
+    return :($ex)
 end
 
 Base.getindex(t::MultiplexTraces{names}, I::Int) where {names} = NamedTuple{names}((t.trace[I], t.trace[I+1]))
@@ -163,83 +166,144 @@ end
 
 struct Traces{names,T,N,E} <: AbstractTraces{names,E}
     traces::T
-    inds::NamedTuple{names,NTuple{N,Int}}
 end
 
 function Adapt.adapt_structure(to, t::Traces{names,T,N,E}) where {names,T,N,E}
     data = Adapt.adapt_structure(to, t.traces)
     # FIXME: `E` is not adapted here
-    Traces{names,typeof(data),length(names),E}(data, t.inds)
+    Traces{names,typeof(data),length(names),E}(data)
 end
 
 function Traces(; kw...)
     data = map(x -> convert(AbstractTrace, x), values(kw))
     names = keys(data)
-    inds = NamedTuple(k => i for (i, k) in enumerate(names))
-    Traces{names,typeof(data),length(names),typeof(values(data))}(data, inds)
+    Traces{names,typeof(data),length(names),typeof(values(data))}(data)
 end
 
 
-function Base.getindex(ts::Traces, s::Symbol)
-    t = ts.traces[ts.inds[s]]
+Base.getindex(ts::Traces, s::Symbol) = Base.getindex(ts::Traces, Val(s))
+
+function Base.getindex(ts::Traces, ::Val{s}) where {s}
+    t = _gettrace(ts, Val(s))
     if t isa AbstractTrace
         t
+    elseif t isa MultiplexTraces
+        _getindex(t, Val(s))
     else
-        t[s]
+        throw(ArgumentError("unknown trace name: $s"))
     end
 end
 
-Base.getindex(t::Traces{names}, i) where {names} = NamedTuple{names}(map(k -> t[k][i], names))
+@generated function _gettrace(ts::Traces{names,Trs,N,E}, ::Val{k}) where {names,Trs,N,E,k}
+    index_ = build_trace_index(names, Trs)
+    # Generate code, i.e. find the correct index for a given key
+    ex = :()
+    
+    for name in names
+        if QuoteNode(name) == QuoteNode(k)
+            index_element = index_[k]
+            ex = :(ts.traces[$index_element])
+            break
+        end
+    end
+
+    return :($ex)
+end
+
+@generated function Base.getindex(t::Traces{names}, i) where {names}
+    ex = :(NamedTuple{$(names)}($(Expr(:tuple))))
+    for k in names
+        push!(ex.args[2].args, :(t[Val($(QuoteNode(k)))][i]))
+    end
+    return ex
+end
 
 function Base.:(+)(t1::AbstractTraces{k1,T1}, t2::AbstractTraces{k2,T2}) where {k1,k2,T1,T2}
     ks = (k1..., k2...)
     ts = (t1, t2)
-    inds = (; (k => 1 for k in k1)..., (k => 2 for k in k2)...)
-    Traces{ks,typeof(ts),length(ks),Tuple{T1.types...,T2.types...}}(ts, inds)
+    Traces{ks,typeof(ts),length(ks),Tuple{T1.types...,T2.types...}}(ts)
 end
 
 function Base.:(+)(t1::AbstractTraces{k1,T1}, t2::Traces{k2,T,N,T2}) where {k1,T1,k2,T,N,T2}
     ks = (k1..., k2...)
     ts = (t1, t2.traces...)
-    inds = merge(NamedTuple(k => 1 for k in k1), map(v -> v + 1, t2.inds))
-    Traces{ks,typeof(ts),length(ks),Tuple{T1.types...,T2.types...}}(ts, inds)
+    Traces{ks,typeof(ts),length(ks),Tuple{T1.types...,T2.types...}}(ts)
 end
 
 
 function Base.:(+)(t1::Traces{k1,T,N,T1}, t2::AbstractTraces{k2,T2}) where {k1,T,N,T1,k2,T2}
     ks = (k1..., k2...)
     ts = (t1.traces..., t2)
-    inds = merge(t1.inds, (; (k => length(ts) for k in k2)...))
-    Traces{ks,typeof(ts),length(ks),Tuple{T1.types...,T2.types...}}(ts, inds)
+    Traces{ks,typeof(ts),length(ks),Tuple{T1.types...,T2.types...}}(ts)
 end
 
 function Base.:(+)(t1::Traces{k1,T1,N1,E1}, t2::Traces{k2,T2,N2,E2}) where {k1,T1,N1,E1,k2,T2,N2,E2}
     ks = (k1..., k2...)
     ts = (t1.traces..., t2.traces...)
-    inds = merge(t1.inds, map(x -> x + length(t1.traces), t2.inds))
-    Traces{ks,typeof(ts),length(ks),Tuple{E1.types...,E2.types...}}(ts, inds)
+    Traces{ks,typeof(ts),length(ks),Tuple{E1.types...,E2.types...}}(ts)
 end
 
 Base.size(t::Traces) = (mapreduce(length, min, t.traces),)
-capacity(t::Traces) = minimum(map(idx->capacity(t.traces[idx]),t.inds))
 
-for f in (:push!, :pushfirst!)
-    @eval function Base.$f(ts::Traces, xs::NamedTuple)
-        for (k, v) in pairs(xs)
-            $f(ts, Val(k), v)
+function capacity(t::Traces{names,Trs,N,E}) where {names,Trs,N,E}
+    minimum(map(idx->capacity(t[idx]), names))
+end
+
+@generated function Base.push!(ts::Traces, xs::NamedTuple{N,T}) where {N,T}
+    ex = :()
+    for n in N
+        ex = :($ex; push!(ts, Val($(QuoteNode(n))), xs.$n))
+    end
+    return :($ex)
+end
+
+@generated function Base.pushfirst!(ts::Traces, xs::NamedTuple{N,T}) where {N,T}
+    ex = :()
+    for n in N
+        ex = :($ex; pushfirst!(ts, Val($(QuoteNode(n))), xs.$n))
+    end
+    return :($ex)
+end
+
+@generated function Base.pushfirst!(ts::Traces{names,Trs,N,E}, ::Val{k}, v) where {names,Trs,N,E,k}
+    index_ = build_trace_index(names, Trs)
+    # Generate code, i.e. find the correct index for a given key
+    ex = :()
+    
+    for name in names
+        if QuoteNode(name) == QuoteNode(k)
+            index_element = index_[k]
+            ex = :(pushfirst!(ts.traces[$index_element], Val($(QuoteNode(k))), v))
+            break
         end
     end
 
-    @eval function Base.$f(ts::Traces, ::Val{k}, v) where {k}
-        $f(ts.traces[ts.inds[k]], Val(k), v)
+    return :($ex)
+end
+
+@generated function Base.push!(ts::Traces{names,Trs,N,E}, ::Val{k}, v) where {names,Trs,N,E,k}
+    index_ = build_trace_index(names, Trs)
+    # Generate code, i.e. find the correct index for a given key
+    ex = :()
+    
+    for name in names
+        if QuoteNode(name) == QuoteNode(k)
+            index_element = index_[k]
+            ex = :(push!(ts.traces[$index_element], Val($(QuoteNode(k))), v))
+            break
+        end
     end
 
+    return :($ex)
+end
+
+for f in (:push!, :pushfirst!)
     @eval function Base.$f(t::AbstractTrace, ::Val{k}, v) where {k}
         $f(t, v)
     end
 
     @eval function Base.$f(t::Trace, ::Val{k}, v) where {k}
-        $f(t, v)
+        $f(t.parent, v)
     end
 
     @eval function Base.$f(ts::MultiplexTraces, ::Val{k}, v) where {k}
@@ -251,7 +315,7 @@ end
 for f in (:append!, :prepend!)
     @eval function Base.$f(ts::Traces, xs::Traces)
         for k in keys(xs)
-            t = ts.traces[ts.inds[k]]
+            t = _gettrace(ts, Val(k))
             $f(t, xs[k])
         end
     end
@@ -263,4 +327,39 @@ for f in (:pop!, :popfirst!, :empty!)
             $f(t)
         end
     end
+end
+
+
+"""
+    build_trace_index(names::NTuple, traces_signature::DataType)
+
+Take type signature from `Traces` and build a mapping from trace name to trace index
+"""
+function build_trace_index(names::NTuple, traces_signature::DataType)
+    # Build index
+    index_ = Dict()
+
+    if traces_signature <: NamedTuple
+        # Handle simple Traces
+        index_ = Dict(name => i for (name, i) ∈ zip(names, 1:length(names)))
+    elseif traces_signature <: Tuple
+        # Handle MultiplexTracesup
+        i = 1
+        j = 1
+        trace_list = traces_signature.parameters
+        for tr in trace_list
+            if tr <: MultiplexTraces
+                index_[names[i]] = j
+                i += 1
+                index_[names[i]] = j
+            else
+                index_[names[i]] = j
+            end
+            i += 1
+            j += 1
+        end
+    else
+        error("Traces store is neither a tuple nor a named tuple!")
+    end
+    return index_
 end

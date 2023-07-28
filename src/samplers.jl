@@ -49,7 +49,7 @@ StatsBase.sample(s::BatchSampler{names}, t::AbstractTraces) where {names} = Stat
 
 function StatsBase.sample(s::BatchSampler, t::AbstractTraces, names, weights = StatsBase.UnitWeights{Int}(length(t)))
     inds = StatsBase.sample(s.rng, 1:length(t), weights, s.batch_size)
-    NamedTuple{names}(map(x -> collect(t[x][inds]), names))
+    NamedTuple{names}(map(x -> collect(t[Val(x)][inds]), names))
 end
 
 function StatsBase.sample(s::BatchSampler, t::EpisodesBuffer, names)
@@ -74,12 +74,12 @@ function StatsBase.sample(s::BatchSampler, e::EpisodesBuffer{<:Any, <:Any, <:Cir
     st = deepcopy(t.priorities)
     st .*= e.sampleable_inds[1:end-1] #temporary sumtree that puts 0 priority to non sampleable indices.
     inds, priorities = rand(s.rng, st, s.batch_size)
-    NamedTuple{(:key, :priority, names...)}((t.keys[inds], priorities, map(x -> collect(t.traces[x][inds]), names)...))
+    NamedTuple{(:key, :priority, names...)}((t.keys[inds], priorities, map(x -> collect(t.traces[Val(x)][inds]), names)...))
 end
 
 function StatsBase.sample(s::BatchSampler, t::CircularPrioritizedTraces, names)
     inds, priorities = rand(s.rng, t.priorities, s.batch_size)
-    NamedTuple{(:key, :priority, names...)}((t.keys[inds], priorities, map(x -> collect(t.traces[x][inds]), names)...))
+    NamedTuple{(:key, :priority, names...)}((t.keys[inds], priorities, map(x -> collect(t.traces[Val(x)][inds]), names)...))
 end
 
 #####

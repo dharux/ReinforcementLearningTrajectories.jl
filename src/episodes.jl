@@ -85,20 +85,47 @@ ispartial_insert(traces::Traces, xs) = length(xs) < length(traces.traces) #this 
 ispartial_insert(es::EpisodesBuffer, xs) = ispartial_insert(es.traces, xs)
 ispartial_insert(traces::CircularPrioritizedTraces, xs) = ispartial_insert(traces.traces, xs)
 
-function fill_multiplex(es::EpisodesBuffer)
-    for trace in es.traces.traces
-        if !(trace isa MultiplexTraces)
-            push!(trace, last(trace)) #push a duplicate of last element as a dummy element, should never be sampled.
-        end
-    end
+function pad!(trace::Trace)
+    pad!(trace.parent)
+    return nothing
 end
-function fill_multiplex(es::EpisodesBuffer{<:Any,<:Any,<:CircularPrioritizedTraces})
-    for trace in es.traces.traces.traces
-        if !(trace isa MultiplexTraces)
-            push!(trace, last(trace)) #push a duplicate of last element as a dummy element, should never be sampled.
+
+pad!(buf::CircularVectorBuffer{T}) where {T} = push!(buf, zero(T))
+pad!(vect::Vector{T}) where {T} = push!(vect, zero(T))
+
+#push a duplicate of last element as a dummy element for all 'trace' objects, ignores multiplex traces, should never be sampled.
+@generated function fill_multiplex(trace_tuple::Traces{names,Trs,N,E}) where {names,Trs,N,E}
+    traces_signature = Trs
+    ex = :()
+    i = 1
+
+    if traces_signature <: NamedTuple
+        # Handle 'simple' (non-multiplexed) Traces
+        for tr in traces_signature.parameters[1]
+            ex = :($ex; pad!(trace_tuple.traces[$i])) # pad everything
+            i += 1
         end
+    elseif traces_signature <: Tuple
+        traces_signature = traces_signature.parameters
+        
+    
+        for tr in traces_signature
+            if !(tr <: MultiplexTraces)
+                #push a duplicate of last element as a dummy element, should never be sampled.
+                ex = :($ex; pad!(trace_tuple.traces[$i]))
+            end
+            i += 1
+        end
+    else
+        error("Traces store is neither a tuple nor a named tuple!")
     end
+
+    return :($ex)
 end
+
+fill_multiplex(es::EpisodesBuffer) = fill_multiplex(es.traces)
+
+fill_multiplex(es::EpisodesBuffer{<:Any,<:Any,<:CircularPrioritizedTraces}) = fill_multiplex(es.traces.traces)
 
 function Base.push!(eb::EpisodesBuffer, xs::NamedTuple)
     push!(eb.traces, xs)
