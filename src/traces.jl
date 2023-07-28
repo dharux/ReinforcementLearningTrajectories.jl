@@ -250,7 +250,10 @@ function Base.:(+)(t1::Traces{k1,T1,N1,E1}, t2::Traces{k2,T2,N2,E2}) where {k1,T
 end
 
 Base.size(t::Traces) = (mapreduce(length, min, t.traces),)
-capacity(t::Traces) = minimum(map(idx->capacity(t.traces[idx]),t.inds))
+
+function capacity(t::Traces{names,Trs,N,E}) where {names,Trs,N,E}
+    minimum(map(idx->capacity(t[idx]), names))
+end
 
 @generated function Base.push!(ts::Traces, xs::NamedTuple{N,T}) where {N,T}
     ex = :()
@@ -318,7 +321,7 @@ end
 for f in (:append!, :prepend!)
     @eval function Base.$f(ts::Traces, xs::Traces)
         for k in keys(xs)
-            t = ts.traces[ts.inds[k]]
+            t = _gettrace(ts, Val(k))
             $f(t, xs[k])
         end
     end
