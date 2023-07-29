@@ -168,6 +168,7 @@ end
 
     b = RLTrajectories.StatsBase.sample(t)
     @test haskey(b, :priority)
+    @test sum(b.action .== 0) == 0
 end
 
 
@@ -197,5 +198,5 @@ end
     end
 
     b = RLTrajectories.StatsBase.sample(t)
-    @test haskey(b, :priority)
+    @test sum(b.action .== 0) == 0
 end
