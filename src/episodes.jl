@@ -90,7 +90,7 @@ function pad!(trace::Trace)
     return nothing
 end
 
-pad!(buf::CircularVectorBuffer{T}) where {T} = push!(buf, zero(T))
+pad!(buf::CircularArrayBuffer{T}) where {T,N,A} = push!(buf, zero(T))
 pad!(vect::Vector{T}) where {T} = push!(vect, zero(T))
 
 #push a duplicate of last element as a dummy element for all 'trace' objects, ignores multiplex traces, should never be sampled.
