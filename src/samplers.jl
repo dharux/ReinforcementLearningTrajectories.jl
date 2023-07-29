@@ -186,7 +186,7 @@ end
 
 function StatsBase.sample(s::NStepBatchSampler{names}, ts::EpisodesBuffer) where {names}
     valid_range = valid_range_nbatchsampler(s, ts)
-    valid_range = valid_range[valid_range ∈ findall(ts.sampleable_inds)] # Ensure that the valid range is within the sampleable indices
+    valid_range = valid_range[valid_range .∈ (findall(ts.sampleable_inds),)] # Ensure that the valid range is within the sampleable indices, probably could be done more efficiently by refactoring `valid_range_nbatchsampler`
     inds = rand(s.rng, valid_range, s.batch_size)
     StatsBase.sample(s, ts, Val(names), inds)
 end
