@@ -138,7 +138,7 @@ end
 end
 #! format: on
 
-@testset "Trajectory with CircularArraySARTSTraces and NStepBatchSampler" begin
+@testset "Trajectory with CircularPrioritizedTraces and NStepBatchSampler" begin
     n=1
     γ=0.99f0
 
@@ -168,4 +168,35 @@ end
 
     b = RLTrajectories.StatsBase.sample(t)
     @test haskey(b, :priority)
+    @test sum(b.action .== 0) == 0
+end
+
+
+@testset "Trajectory with CircularArraySARTSTraces and NStepBatchSampler" begin
+    n=1
+    γ=0.99f0
+
+    t = Trajectory(
+        container=CircularArraySARTSTraces(
+                capacity=5,
+                state=Float32 => (4,),
+        ),
+        sampler=NStepBatchSampler{SS′ART}(
+            n=n,
+            γ=γ,
+            batch_size=32,
+        ),
+        controller=InsertSampleRatioController(
+            threshold=100,
+            n_inserted=-1
+        )
+    )
+
+    push!(t, (state = 1, action = true))
+    for i = 1:9
+        push!(t, (state = i+1, action = true, reward = i, terminal = false))
+    end
+
+    b = RLTrajectories.StatsBase.sample(t)
+    @test sum(b.action .== 0) == 0
 end
