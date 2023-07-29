@@ -173,11 +173,24 @@ end
 NStepBatchSampler(; kw...) = NStepBatchSampler{SS′ART}(; kw...)
 NStepBatchSampler{names}(; n, γ, batch_size=32, stack_size=nothing, rng=Random.GLOBAL_RNG) where {names} = NStepBatchSampler{names}(n, γ, batch_size, stack_size, rng)
 
+
+function valid_range_nbatchsampler(s::NStepBatchSampler, ts)
+    # think about the extreme case where s.stack_size == 1 and s.n == 1
+    isnothing(s.stack_size) ? (1:(length(ts)-s.n+1)) : (s.stack_size:(length(ts)-s.n+1))
+end
 function StatsBase.sample(s::NStepBatchSampler{names}, ts) where {names}
-    valid_range = isnothing(s.stack_size) ? (1:(length(ts)-s.n+1)) : (s.stack_size:(length(ts)-s.n+1))# think about the exteme case where s.stack_size == 1 and s.n == 1
+    valid_range = valid_range_nbatchsampler(s, ts)
     inds = rand(s.rng, valid_range, s.batch_size)
     StatsBase.sample(s, ts, Val(names), inds)
 end
+
+function StatsBase.sample(s::NStepBatchSampler{names}, ts::EpisodesBuffer) where {names}
+    valid_range = valid_range_nbatchsampler(s, ts)
+    valid_range = valid_range[valid_range ∈ findall(ts.sampleable_inds)] # Ensure that the valid range is within the sampleable indices
+    inds = rand(s.rng, valid_range, s.batch_size)
+    StatsBase.sample(s, ts, Val(names), inds)
+end
+
 
 function StatsBase.sample(nbs::NStepBatchSampler, ts, ::Val{SS′ART}, inds)
     if isnothing(nbs.stack_size)
