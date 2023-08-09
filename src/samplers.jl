@@ -262,9 +262,13 @@ function StatsBase.sample(::EpisodesSampler, t::EpisodesBuffer, names)
     ranges = UnitRange{Int}[]
     idx = 1
     while idx < length(t)
-        last_state_idx = idx + t.episodes_lengths[idx] - t.step_numbers[idx] + 1
-        push!(ranges,idx:last_state_idx)
-        idx = last_state_idx + 1
+        if t.sampleable_inds[idx] == 1
+            last_state_idx = idx + t.episodes_lengths[idx] - t.step_numbers[idx] + 1
+            push!(ranges,idx:last_state_idx)
+            idx = last_state_idx + 1
+        else
+            idx += 1
+        end
     end
     
     return [Episode(NamedTuple{names}(map(x -> collect(t[Val(x)][r]), names))) for r in ranges]

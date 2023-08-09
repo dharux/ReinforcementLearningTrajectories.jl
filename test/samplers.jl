@@ -218,6 +218,14 @@
         @test length(b) == 2
         @test length(b[1][:state]) == 5
         @test length(b[2][:state]) == 6
+        
+        for (j,i) = enumerate(2:5)
+            push!(eb, (state = i, action =i, reward = i-1, terminal = false))
+        end
+        #only the last state of the first episode is still buffered. Should not be sampled.
+        b = sample(s, eb)
+        @test length(b) == 1
+        
 
         #with specified traces
         s = EpisodesSampler{(:state,)}()
