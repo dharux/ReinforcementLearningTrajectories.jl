@@ -1,4 +1,4 @@
-#@testset "Samplers" begin
+@testset "Samplers" begin
     @testset "BatchSampler" begin
         sz = 32
         s = BatchSampler(sz)
@@ -202,7 +202,7 @@
         @test sum(b.action .== 0) == 0
     end
 
-    #@testset "EpisodesSampler" begin
+    @testset "EpisodesSampler" begin
         s = EpisodesSampler()
         eb = EpisodesBuffer(CircularArraySARTSTraces(capacity=10)) 
         push!(eb, (state = 1, action = 1))
