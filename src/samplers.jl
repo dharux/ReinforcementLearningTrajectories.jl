@@ -1,4 +1,5 @@
 using Random
+export EpisodesSampler, Episode, BatchSampler, NStepBatchSampler, MetaSampler, MultiBatchSampler, DummySampler
 
 struct SampleGenerator{S,T}
     sampler::S
@@ -232,4 +233,43 @@ function StatsBase.sample(s::NStepBatchSampler{names}, e::EpisodesBuffer{<:Any, 
         (key=t.keys[inds], priority=priorities),
         StatsBase.sample(s, t.traces, Val(names), inds)
     )
+end
+
+"""
+    EpisodesSampler()
+
+A sampler that samples all Episodes present in the Trajectory and divides them into 
+Episode containers. Truncated Episodes (e.g. due to the buffer capacity) are sampled as well.
+There will be at most one truncated episode and it will always be the first one. 
+"""
+struct EpisodesSampler{names}
+end
+
+EpisodesSampler() = EpisodesSampler{nothing}()
+#EpisodesSampler{names}() = new{names}()
+
+
+struct Episode{names, N <: NamedTuple{names}}
+    nt::N
+end
+
+@forward Episode.nt Base.keys, Base.haskey, Base.getindex
+
+StatsBase.sample(s::EpisodesSampler{nothing}, t::EpisodesBuffer) = StatsBase.sample(s,t,keys(t))
+StatsBase.sample(s::EpisodesSampler{names}, t::EpisodesBuffer) where names = StatsBase.sample(s,t,names)
+
+function StatsBase.sample(::EpisodesSampler, t::EpisodesBuffer, names)
+    ranges = UnitRange{Int}[]
+    idx = 1
+    while idx < length(t)
+        if t.sampleable_inds[idx] == 1
+            last_state_idx = idx + t.episodes_lengths[idx] - t.step_numbers[idx] + 1
+            push!(ranges,idx:last_state_idx)
+            idx = last_state_idx + 1
+        else
+            idx += 1
+        end
+    end
+    
+    return [Episode(NamedTuple{names}(map(x -> collect(t[Val(x)][r]), names))) for r in ranges]
 end
