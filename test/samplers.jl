@@ -14,7 +14,7 @@
         @test size(b.action) == (sz,)
         
         #In EpisodesBuffer
-        eb = EpisodesBuffer(CircularArraySARTSTraces(capacity=10)) 
+        eb = EpisodesBuffer(CircularArraySARTSATraces(capacity=10)) 
         push!(eb, (state = 1, action = 1))
         for i = 1:5
             push!(eb, (state = i+1, action =i+1, reward = i, terminal = false))
