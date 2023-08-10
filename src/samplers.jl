@@ -258,12 +258,17 @@ end
 StatsBase.sample(s::EpisodesSampler{nothing}, t::EpisodesBuffer) = StatsBase.sample(s,t,keys(t))
 StatsBase.sample(s::EpisodesSampler{names}, t::EpisodesBuffer) where names = StatsBase.sample(s,t,names)
 
+function make_episode(t::EpisodesBuffer, range, names)
+    nt = NamedTuple{names}(map(x -> collect(t[Val(x)][range]), names))
+    Episode(nt)
+end
+
 function StatsBase.sample(::EpisodesSampler, t::EpisodesBuffer, names)
     ranges = UnitRange{Int}[]
     idx = 1
     while idx < length(t)
         if t.sampleable_inds[idx] == 1
-            last_state_idx = idx + t.episodes_lengths[idx] - t.step_numbers[idx] + 1
+            last_state_idx = idx + t.episodes_lengths[idx] - t.step_numbers[idx]
             push!(ranges,idx:last_state_idx)
             idx = last_state_idx + 1
         else
@@ -271,5 +276,5 @@ function StatsBase.sample(::EpisodesSampler, t::EpisodesBuffer, names)
         end
     end
     
-    return [Episode(NamedTuple{names}(map(x -> collect(t[Val(x)][r]), names))) for r in ranges]
+    return [make_episode(t, r, names) for r in ranges]
 end
