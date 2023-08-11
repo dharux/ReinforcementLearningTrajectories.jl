@@ -14,7 +14,7 @@
         @test size(b.action) == (sz,)
         
         #In EpisodesBuffer
-        eb = EpisodesBuffer(CircularArraySARTSTraces(capacity=10)) 
+        eb = EpisodesBuffer(CircularArraySARTSATraces(capacity=10)) 
         push!(eb, (state = 1, action = 1))
         for i = 1:5
             push!(eb, (state = i+1, action =i+1, reward = i, terminal = false))
@@ -205,19 +205,25 @@
     @testset "EpisodesSampler" begin
         s = EpisodesSampler()
         eb = EpisodesBuffer(CircularArraySARTSTraces(capacity=10)) 
-        push!(eb, (state = 1, action = 1))
+        push!(eb, (state = 1,))
         for i = 1:5
-            push!(eb, (state = i+1, action =i+1, reward = i, terminal = false))
+            push!(eb, (state = i+1, action =i, reward = i, terminal = false))
         end
-        push!(eb, (state = 7, action = 7))
+        push!(eb, (state = 7,))
         for (j,i) = enumerate(8:12)
-            push!(eb, (state = i, action =i, reward = i-1, terminal = false))
+            push!(eb, (state = i, action =i-1, reward = i-1, terminal = false))
         end
 
         b = sample(s, eb)
         @test length(b) == 2
-        @test length(b[1][:state]) == 5
-        @test length(b[2][:state]) == 6
+        @test b[1][:state] == [2:5;]
+        @test b[1][:next_state] == [3:6;]
+        @test b[1][:action] == [2:5;]
+        @test b[1][:reward] == [2:5;]
+        @test b[2][:state] == [7:11;]
+        @test b[2][:next_state] == [8:12;]
+        @test b[2][:action] == [7:11;]
+        @test b[2][:reward] == [7:11;]
         
         for (j,i) = enumerate(2:5)
             push!(eb, (state = i, action =i, reward = i-1, terminal = false))
@@ -241,8 +247,8 @@
 
         b = sample(s, eb)
         @test length(b) == 2
-        @test length(b[1][:state]) == 5
-        @test length(b[2][:state]) == 6
+        @test length(b[1][:state]) == 4
+        @test length(b[2][:state]) == 5
         @test !haskey(b[1], :action)
     end
 end
