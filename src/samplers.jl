@@ -168,7 +168,7 @@ export NStepBatchSampler
 
 Used to sample a discounted sum of consecutive rewards in the framework of n-step TD learning.
 The "next" element of Multiplexed traces (such as the next_state or the next_action) will be 
-that in up to `n > 1` steps later in the buffer (or the last of the episode). The reward will be
+that in up to `n > 1` steps later in the buffer. The reward will be
 the discounted sum of the `n` rewards, with `γ` as the discount factor.
 
 NStepBatchSampler may also be used with n ≥ 1 to sample a "stack" of states if `stack_size` is set 
@@ -176,78 +176,69 @@ to an integer > 1. This samples the (stack_size - 1) previous states. This is us
 of partial observability, for example when the state is approximated by `stack_size` consecutive 
 frames.
 """
-mutable struct NStepBatchSampler{traces}
+mutable struct NStepBatchSampler{names, S <: Union{Nothing,Int}}
     n::Int # !!! n starts from 1
     γ::Float32
     batch_size::Int
-    stack_size::Union{Nothing,Int}
+    stack_size::S
     rng::Any
 end
 
 NStepBatchSampler(; kw...) = NStepBatchSampler{SS′ART}(; kw...)
 function NStepBatchSampler{names}(; n, γ, batch_size=32, stack_size=nothing, rng=Random.GLOBAL_RNG) where {names} 
     @assert n >= 1 "n must be ≥ 1."
-    NStepBatchSampler{names}(n, γ, batch_size, stack_size, rng)
+    NStepBatchSampler{names}(n, γ, batch_size, stack_size == 1 ? nothing : stack_size, rng)
 end
 
-
-function valid_range_nbatchsampler(s::NStepBatchSampler, ts)
-    # think about the extreme case where s.stack_size == 1 and s.n == 1
-    isnothing(s.stack_size) ? (1:(length(ts)-s.n+1)) : (s.stack_size:(length(ts)-s.n+1))
+function valid_range_nbatchsampler(s::NStepBatchSampler, eb::EpisodesBuffer)
+    range = copy(eb.sampleable_inds)
+    stack_size = isnothing(s.stack_size) ? 1 : s.stack_size 
+    for idx in eachindex(range)
+        valid = eb.step_numbers[idx] >= stack_size && eb.step_numbers[idx] <= eb.episodes_lengths[idx] + 1 - eb.n && eb.sampleable_inds[idx]
+        range[idx] = valid
+    end
+    return range
 end
+
 function StatsBase.sample(s::NStepBatchSampler{names}, ts) where {names}
-    valid_range = valid_range_nbatchsampler(s, ts)
-    inds = rand(s.rng, valid_range, s.batch_size)
-    StatsBase.sample(s, ts, Val(names), inds)
+    StatsBase.sample(s, ts, Val(names))
 end
 
-function StatsBase.sample(s::NStepBatchSampler{names}, ts::EpisodesBuffer) where {names}
-    valid_range = valid_range_nbatchsampler(s, ts)
-    valid_range = valid_range[valid_range .∈ (findall(ts.sampleable_inds),)] # Ensure that the valid range is within the sampleable indices, probably could be done more efficiently by refactoring `valid_range_nbatchsampler`
-    inds = rand(s.rng, valid_range, s.batch_size)
-    StatsBase.sample(s, ts, Val(names), inds)
+function StatsBase.sample(s::NStepBatchSampler, t::EpisodesBuffer, names)
+    valid_range = valid_range_nbatchsampler(s, t)
+    StatsBase.sample(s, t.traces, names, StatsBase.FrequencyWeights(valid_range))
 end
 
-
-function StatsBase.sample(nbs::NStepBatchSampler, ts, ::Val{SS′ART}, inds)
-    if isnothing(nbs.stack_size)
-        s = ts[:state][inds]
-        s′ = ts[:next_state][inds.+(nbs.n-1)]
-    else
-        s = ts[:state][[x + i for i in -nbs.stack_size+1:0, x in inds]]
-        s′ = ts[:next_state][[x + nbs.n - 1 + i for i in -nbs.stack_size+1:0, x in inds]]
-    end
-
-    a = ts[:action][inds]
-    t_horizon = ts[:terminal][[x + j for j in 0:nbs.n-1, x in inds]]
-    r_horizon = ts[:reward][[x + j for j in 0:nbs.n-1, x in inds]]
-
-    @assert ndims(t_horizon) == 2
-    t = any(t_horizon, dims=1) |> vec
-
-    @assert ndims(r_horizon) == 2
-    r = map(eachcol(r_horizon), eachcol(t_horizon)) do r⃗, t⃗
-        foldr(((rr, tt), init) -> rr + nbs.γ * init * (1 - tt), zip(r⃗, t⃗); init=0.0f0)
-    end
-
-    NamedTuple{SS′ART}(map(collect, (s, s′, a, r, t)))
+function StatsBase.sample(s::NStepBatchSampler, t::AbstractTraces, names, weights = StatsBase.UnitWeights{Int}(length(t)))
+    inds = StatsBase.sample(s.rng, 1:length(t), weights, s.batch_size)
+    NamedTuple{names}map(name -> collect(fetch(s, ts[name], Val(name), inds)), names)
 end
 
-function StatsBase.sample(s::NStepBatchSampler, ts, ::Val{SS′L′ART}, inds)
-    s, s′, a, r, t = StatsBase.sample(s, ts, Val(SSART), inds)
-    l = consecutive_view(ts[:next_legal_actions_mask], inds)
-    NamedTuple{SSLART}(map(collect, (s, s′, l, a, r, t)))
+#state and next_state have specialized fetch methods due to stack_size
+fetch(::NStepBatchSampler{names, Nothing}, trace, ::Val{:state}, inds) where {names} = trace[inds]
+fetch(s::NStepBatchSampler{names, Int}, trace, ::Val{:state}, inds) where {names} = trace[[x + s.n - 1 + i for i in -s.stack_size+1:0, x in inds]]
+fetch(s::NStepBatchSampler{names, Nothing}, trace, ::Val{:next_state}, inds) where {names} = trace[inds.+(s.n-1)]
+fetch(s::NStepBatchSampler{names, Int}, trace, ::Val{:next_state}, inds) where {names} = trace[[x + s.n - 1 + i for i in -s.stack_size+1:0, x in inds]]
+#reward due to discounting
+function fetch(s::NStepBatchSampler{names}, trace, ::Val{:reward}, inds) where {names} 
+    rewards = trace[[x + j for j in 0:nbs.n-1, x in inds]]
+    return reduce((x,y)->x + s.γ*y, rewards, init = zero(eltype(rewards)), dims = 1)
 end
+#terminal is that of the nth step
+fetch(s::NStepBatchSampler{names}, trace, ::Val{:terminal}, inds) where {names} = trace[inds.+s.n]
+#right multiplex traces must be n-step sampled
+fetch(::NStepBatchSampler{names}, trace::RelativeTrace{1,0} , ::Val{<:Symbol}, inds) where {names} = trace[inds.+(s.n-1)]
+#normal trace types are fetched at inds
+fetch(::NStepBatchSampler{names}, trace, ::Val{<:Symbol}, inds) where {names} = trace[inds] #other types of trace are sampled normaly
 
 function StatsBase.sample(s::NStepBatchSampler{names}, e::EpisodesBuffer{<:Any, <:Any, <:CircularPrioritizedTraces}) where {names}
     t = e.traces
     st = deepcopy(t.priorities)
-    st .*= e.sampleable_inds[1:end-1] #temporary sumtree that puts 0 priority to non sampleable indices.
+    st .*= valid_range_nbatchsampler(s,e) #temporary sumtree that puts 0 priority to non sampleable indices.
     inds, priorities = rand(s.rng, st, s.batch_size)
-
     merge(
         (key=t.keys[inds], priority=priorities),
-        StatsBase.sample(s, t.traces, Val(names), inds)
+        fetch(s, t.traces, Val(names), inds)
     )
 end
 
