@@ -163,6 +163,19 @@ end
 
 export NStepBatchSampler
 
+"""
+    NStepBatchSampler{names}(; n, γ, batch_size=32, stack_size=nothing, rng=Random.GLOBAL_RNG)
+
+Used to sample a discounted sum of consecutive rewards in the framework of n-step TD learning.
+The "next" element of Multiplexed traces (such as the next_state or the next_action) will be 
+that in up to `n > 1` steps later in the buffer (or the last of the episode). The reward will be
+the discounted sum of the `n` rewards, with `γ` as the discount factor.
+
+NStepBatchSampler may also be used with n ≥ 1 to sample a "stack" of states if `stack_size` is set 
+to an integer > 1. This samples the (stack_size - 1) previous states. This is useful in the case
+of partial observability, for example when the state is approximated by `stack_size` consecutive 
+frames.
+"""
 mutable struct NStepBatchSampler{traces}
     n::Int # !!! n starts from 1
     γ::Float32
@@ -172,7 +185,10 @@ mutable struct NStepBatchSampler{traces}
 end
 
 NStepBatchSampler(; kw...) = NStepBatchSampler{SS′ART}(; kw...)
-NStepBatchSampler{names}(; n, γ, batch_size=32, stack_size=nothing, rng=Random.GLOBAL_RNG) where {names} = NStepBatchSampler{names}(n, γ, batch_size, stack_size, rng)
+function NStepBatchSampler{names}(; n, γ, batch_size=32, stack_size=nothing, rng=Random.GLOBAL_RNG) where {names} 
+    @assert n >= 1 "n must be ≥ 1."
+    NStepBatchSampler{names}(n, γ, batch_size, stack_size, rng)
+end
 
 
 function valid_range_nbatchsampler(s::NStepBatchSampler, ts)
