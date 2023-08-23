@@ -48,7 +48,7 @@ Base.size(x::Trace) = (size(x.parent, ndims(x.parent)),)
 Base.getindex(s::Trace, I) = Base.maybeview(s.parent, ntuple(i -> i == ndims(s.parent) ? I : (:), Val(ndims(s.parent)))...)
 Base.setindex!(s::Trace, v, I) = setindex!(s.parent, v, ntuple(i -> i == ndims(s.parent) ? I : (:), Val(ndims(s.parent)))...)
 
-@forward Trace.parent Base.parent, Base.pushfirst!, Base.push!, Base.append!, Base.prepend!, Base.pop!, Base.popfirst!, Base.empty!
+@forward Trace.parent Base.parent, Base.pushfirst!, Base.push!, Base.append!, Base.prepend!, Base.pop!, Base.popfirst!, Base.empty!, Base.eltype
 
 #By default, AbstractTrace have infinity capacity (like a Vector). This method is specialized for 
 #CircularArraySARTSTraces in common.jl. The functions below are made that way to avoid type piracy.
@@ -94,6 +94,7 @@ Base.getindex(s::RelativeTrace{0,-1}, I) = getindex(s.trace, I)
 Base.getindex(s::RelativeTrace{1,0}, I) = getindex(s.trace, I .+ 1)
 Base.setindex!(s::RelativeTrace{0,-1}, v, I) = setindex!(s.trace, v, I)
 Base.setindex!(s::RelativeTrace{1,0}, v, I) = setindex!(s.trace, v, I .+ 1)
+Base.eltype(t::RelativeTrace) = eltype(t.trace)
 capacity(t::RelativeTrace) = capacity(t.trace)
 
 """

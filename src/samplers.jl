@@ -184,61 +184,71 @@ mutable struct NStepBatchSampler{names, S <: Union{Nothing,Int}}
     rng::Any
 end
 
-NStepBatchSampler(; kw...) = NStepBatchSampler{SS′ART}(; kw...)
+NStepBatchSampler(t::AbstractTraces; kw...) = NStepBatchSampler{keys(t)}(; kw...)
 function NStepBatchSampler{names}(; n, γ, batch_size=32, stack_size=nothing, rng=Random.GLOBAL_RNG) where {names} 
     @assert n >= 1 "n must be ≥ 1."
-    NStepBatchSampler{names}(n, γ, batch_size, stack_size == 1 ? nothing : stack_size, rng)
+    ss = stack_size == 1 ? nothing : stack_size
+    NStepBatchSampler{names, typeof(ss)}(n, γ, batch_size, ss, rng)
 end
 
-function valid_range_nbatchsampler(s::NStepBatchSampler, eb::EpisodesBuffer)
+#return a boolean vector of the valid sample indices given the stack_size and the truncated n for each index.
+function valid_range(s::NStepBatchSampler, eb::EpisodesBuffer) 
     range = copy(eb.sampleable_inds)
+    ns = Vector{Int}(undef, length(eb.sampleable_inds))
     stack_size = isnothing(s.stack_size) ? 1 : s.stack_size 
     for idx in eachindex(range)
-        valid = eb.step_numbers[idx] >= stack_size && eb.step_numbers[idx] <= eb.episodes_lengths[idx] + 1 - eb.n && eb.sampleable_inds[idx]
-        range[idx] = valid
+        step_number = eb.step_numbers[idx]
+        range[idx] = step_number >= stack_size && eb.sampleable_inds[idx]
+        ns[idx] = min(s.n, eb.episodes_lengths[idx] - step_number + 1)
     end
-    return range
+    return range, ns
 end
 
 function StatsBase.sample(s::NStepBatchSampler{names}, ts) where {names}
     StatsBase.sample(s, ts, Val(names))
 end
 
-function StatsBase.sample(s::NStepBatchSampler, t::EpisodesBuffer, names)
-    valid_range = valid_range_nbatchsampler(s, t)
-    StatsBase.sample(s, t.traces, names, StatsBase.FrequencyWeights(valid_range))
+function StatsBase.sample(s::NStepBatchSampler, t::EpisodesBuffer, ::Val{names}) where names
+    weights, ns = valid_range(s, t)
+    inds = StatsBase.sample(s.rng, 1:length(t), StatsBase.FrequencyWeights(weights[1:end-1]), s.batch_size)
+    fetch(s, t, Val(names), inds, ns)
 end
 
-function StatsBase.sample(s::NStepBatchSampler, t::AbstractTraces, names, weights = StatsBase.UnitWeights{Int}(length(t)))
-    inds = StatsBase.sample(s.rng, 1:length(t), weights, s.batch_size)
-    NamedTuple{names}map(name -> collect(fetch(s, ts[name], Val(name), inds)), names)
+function fetch(s::NStepBatchSampler, ts::EpisodesBuffer, ::Val{names}, inds, ns) where names
+    NamedTuple{names}(map(name -> collect(fetch(s, ts[name], Val(name), inds, ns[inds])), names))
 end
 
 #state and next_state have specialized fetch methods due to stack_size
-fetch(::NStepBatchSampler{names, Nothing}, trace, ::Val{:state}, inds) where {names} = trace[inds]
-fetch(s::NStepBatchSampler{names, Int}, trace, ::Val{:state}, inds) where {names} = trace[[x + s.n - 1 + i for i in -s.stack_size+1:0, x in inds]]
-fetch(s::NStepBatchSampler{names, Nothing}, trace, ::Val{:next_state}, inds) where {names} = trace[inds.+(s.n-1)]
-fetch(s::NStepBatchSampler{names, Int}, trace, ::Val{:next_state}, inds) where {names} = trace[[x + s.n - 1 + i for i in -s.stack_size+1:0, x in inds]]
+fetch(::NStepBatchSampler{names, Nothing}, trace::AbstractTrace, ::Val{:state}, inds, ns) where {names} = trace[inds]
+fetch(s::NStepBatchSampler{names, Int}, trace::AbstractTrace, ::Val{:state}, inds, ns) where {names} = trace[[x + i for i in -s.stack_size+1:0, x in inds]]
+fetch(::NStepBatchSampler{names, Nothing}, trace::RelativeTrace{1,0}, ::Val{:next_state}, inds, ns) where {names} = trace[inds .+ ns .- 1]
+fetch(s::NStepBatchSampler{names, Int}, trace::RelativeTrace{1,0}, ::Val{:next_state}, inds, ns) where {names}  = trace[[x + ns[idx] - 1 + i for i in -s.stack_size+1:0, (idx,x) in enumerate(inds)]]
+
 #reward due to discounting
-function fetch(s::NStepBatchSampler{names}, trace, ::Val{:reward}, inds) where {names} 
-    rewards = trace[[x + j for j in 0:nbs.n-1, x in inds]]
-    return reduce((x,y)->x + s.γ*y, rewards, init = zero(eltype(rewards)), dims = 1)
+function fetch(s::NStepBatchSampler, trace::AbstractTrace, ::Val{:reward}, inds, ns)
+    rewards = Vector{eltype(trace)}(undef, length(inds))
+    for (i,idx) in enumerate(inds)
+        rewards_to_go = trace[idx:idx+ns[i]-1]
+        rewards[i] = foldr((x,y)->x + s.γ*y, rewards_to_go)
+    end
+    return rewards
 end
 #terminal is that of the nth step
-fetch(s::NStepBatchSampler{names}, trace, ::Val{:terminal}, inds) where {names} = trace[inds.+s.n]
+fetch(::NStepBatchSampler, trace::AbstractTrace, ::Val{:terminal}, inds, ns) = trace[inds .+ ns .- 1]
 #right multiplex traces must be n-step sampled
-fetch(::NStepBatchSampler{names}, trace::RelativeTrace{1,0} , ::Val{<:Symbol}, inds) where {names} = trace[inds.+(s.n-1)]
+fetch(::NStepBatchSampler, trace::RelativeTrace{1,0} , ::Val, inds, ns) = trace[inds .+ ns .- 1]
 #normal trace types are fetched at inds
-fetch(::NStepBatchSampler{names}, trace, ::Val{<:Symbol}, inds) where {names} = trace[inds] #other types of trace are sampled normaly
+fetch(::NStepBatchSampler, trace::AbstractTrace, ::Val, inds, ns) = trace[inds] #other types of trace are sampled normally
 
 function StatsBase.sample(s::NStepBatchSampler{names}, e::EpisodesBuffer{<:Any, <:Any, <:CircularPrioritizedTraces}) where {names}
     t = e.traces
     st = deepcopy(t.priorities)
-    st .*= valid_range_nbatchsampler(s,e) #temporary sumtree that puts 0 priority to non sampleable indices.
+    valids, ns = valid_range(s,e)
+    st .*= valids[1:end-1] #temporary sumtree that puts 0 priority to non sampleable indices.
     inds, priorities = rand(s.rng, st, s.batch_size)
     merge(
         (key=t.keys[inds], priority=priorities),
-        fetch(s, t.traces, Val(names), inds)
+        fetch(s, e, Val(names), inds, ns)
     )
 end
 

@@ -1,9 +1,9 @@
 using ReinforcementLearningTrajectories
 using CircularArrayBuffers, DataStructures
 using Test
+import ReinforcementLearningTrajectories.StatsBase.sample
 using CUDA
 using Adapt
-import ReinforcementLearningTrajectories.StatsBase.sample
 
 struct TestAdaptor end
 

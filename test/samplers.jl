@@ -1,4 +1,5 @@
-@testset "Samplers" begin
+import ReinforcementLearningTrajectories.fetch
+#@testset "Samplers" begin
     @testset "BatchSampler" begin
         sz = 32
         s = BatchSampler(sz)
@@ -74,132 +75,76 @@
 
     #! format: off
     @testset "NStepSampler" begin
-        γ = 0.9
+        γ = 0.99
         n_stack = 2
         n_horizon = 3
+        batch_size = 1000
+        eb = EpisodesBuffer(CircularArraySARTSATraces(capacity=10)) 
+        s1 = NStepBatchSampler(eb, n=n_horizon, γ=γ, stack_size=n_stack, batch_size=batch_size)
+
+        push!(eb, (state = 1, action = 1))
+        for i = 1:5
+            push!(eb, (state = i+1, action =i+1, reward = i, terminal = i == 5))
+        end
+        push!(eb, (state = 7, action = 7))
+        for (j,i) = enumerate(8:11)
+            push!(eb, (state = i, action =i, reward = i-1, terminal = false))
+        end
+        weights, ns = ReinforcementLearningTrajectories.valid_range(s1, eb)
+        @test weights == [0,1,1,1,1,0,0,1,1,1,0]
+        @test ns == [3,3,3,2,1,-1,3,3,2,1,0] #the -1 is due to ep_lengths[6] being that of 2nd episode but step_numbers[6] being that of 1st episode
+        inds = [i for i in eachindex(weights) if weights[i] == 1]
+        batch = sample(s1, eb)
+        for key in keys(eb)
+            @test haskey(batch, key)
+        end
+        #state: samples with stack_size
+        states = ReinforcementLearningTrajectories.fetch(s1, eb[:state], Val(:state), inds, ns[inds])
+        @test states == [1 2 3 4 7 8 9;
+                         2 3 4 5 8 9 10]
+        @test all(in(eachcol(states)), unique(eachcol(batch[:state])))
+        #next_state: samples with stack_size and nsteps forward
+        next_states = ReinforcementLearningTrajectories.fetch(s1, eb[:next_state], Val(:next_state), inds, ns[inds])
+        @test next_states == [4 5 5 5 10 10 10;
+                              5 6 6 6 11 11 11]
+        @test all(in(eachcol(next_states)), unique(eachcol(batch[:next_state])))
+        #action: samples normally 
+        actions = ReinforcementLearningTrajectories.fetch(s1, eb[:action], Val(:action), inds, ns[inds])
+        @test actions == inds
+        @test all(in(actions), unique(batch[:action]))
+        #next_action: is a multiplex trace: should automatically sample nsteps forward
+        next_actions = ReinforcementLearningTrajectories.fetch(s1, eb[:next_action], Val(:next_action), inds, ns[inds])
+        @test next_actions == [5, 6, 6, 6, 11, 11, 11]
+        @test all(in(next_actions), unique(batch[:next_action]))
+        #reward: discounted sum
+        rewards = ReinforcementLearningTrajectories.fetch(s1, eb[:reward], Val(:reward), inds, ns[inds])
+        @test rewards ≈ [2+0.99*3+0.99^2*4, 3+0.99*4+0.99^2*5, 4+0.99*5, 5, 8+0.99*9+0.99^2*10,9+0.99*10, 10]
+        @test all(in(rewards), unique(batch[:reward]))
+        #terminal: nsteps forward
+        terminals = ReinforcementLearningTrajectories.fetch(s1, eb[:terminal], Val(:terminal), inds, ns[inds])
+        @test terminals == [0,1,1,1,0,0,0]
+
+        ### CircularPrioritizedTraces and NStepBatchSampler
+        γ = 0.99
+        n_horizon = 3
         batch_size = 4
+        eb = EpisodesBuffer(CircularPrioritizedTraces(CircularArraySARTSATraces(capacity=10), default_priority = 10f0)) 
+        s1 = NStepBatchSampler(eb, n=n_horizon, γ=γ, batch_size=batch_size)
 
-        t1 = MultiplexTraces{(:state, :next_state)}(1:10) +
-            MultiplexTraces{(:action, :next_action)}(iseven.(1:10)) +
-            Traces(
-                reward=1:9,
-                terminal=Bool[0, 0, 0, 1, 0, 0, 0, 0, 1],
-            )
-
-        s1 = NStepBatchSampler(n=n_horizon, γ=γ, stack_size=n_stack, batch_size=batch_size)
-
-        xs = RLTrajectories.StatsBase.sample(s1, t1)
-
-        @test size(xs.state) == (n_stack, batch_size)
-        @test size(xs.next_state) == (n_stack, batch_size)
-        @test size(xs.action) == (batch_size,)
-        @test size(xs.reward) == (batch_size,)
-        @test size(xs.terminal) == (batch_size,)
-
-        
-        state_size = (2,3)
-        n_state = reduce(*, state_size)
-        total_length = 10
-        t2 = MultiplexTraces{(:state, :next_state)}(
-                reshape(1:n_state * total_length, state_size..., total_length)
-            ) +
-            MultiplexTraces{(:action, :next_action)}(iseven.(1:total_length)) +
-            Traces(
-                reward=1:total_length-1,
-                terminal=Bool[0, 0, 0, 1, 0, 0, 0, 0, 1],
-            )
-
-        xs2 = RLTrajectories.StatsBase.sample(s1, t2)
-
-        @test size(xs2.state) == (state_size..., n_stack, batch_size)
-        @test size(xs2.next_state) == (state_size..., n_stack, batch_size)
-        @test size(xs2.action) == (batch_size,)
-        @test size(xs2.reward) == (batch_size,)
-        @test size(xs2.terminal) == (batch_size,)
-
-        inds = [3, 5, 7]
-        xs3 = RLTrajectories.StatsBase.sample(s1, t2, Val(SS′ART), inds)
-
-        @test xs3.state == cat(
-            (
-                reshape(n_state * (i-n_stack)+1: n_state * i, state_size..., n_stack)
-                for i in inds
-            )...
-            ;dims=length(state_size) + 2
-        ) 
-
-        @test xs3.next_state == xs3.state .+ (n_state * n_horizon)
-        @test xs3.action == iseven.(inds)
-        @test xs3.terminal == [any(t2[:terminal][i: i+n_horizon-1]) for i in inds]
-
-        # manual calculation
-        @test xs3.reward[1] ≈ 3 + γ * 4  # terminated at step 4
-        @test xs3.reward[2] ≈ 5 + γ * (6 + γ * 7)
-        @test xs3.reward[3] ≈ 7 + γ * (8 + γ * 9)
-    end
-    #! format: on
-
-    @testset "Trajectory with CircularPrioritizedTraces and NStepBatchSampler" begin
-        n=1
-        γ=0.99f0
-
-        t = Trajectory(
-            container=CircularPrioritizedTraces(
-                CircularArraySARTSTraces(
-                    capacity=5,
-                    state=Float32 => (4,),
-                );
-                default_priority=100.0f0
-            ),
-            sampler=NStepBatchSampler{SS′ART}(
-                n=n,
-                γ=γ,
-                batch_size=32,
-            ),
-            controller=InsertSampleRatioController(
-                threshold=100,
-                n_inserted=-1
-            )
-        )
-
-        push!(t, (state = 1, action = true))
-        for i = 1:9
-            push!(t, (state = i+1, action = true, reward = i, terminal = false))
+        push!(eb, (state = 1, action = 1))
+        for i = 1:5
+            push!(eb, (state = i+1, action =i+1, reward = i, terminal = i == 5))
         end
-
-        b = RLTrajectories.StatsBase.sample(t)
-        @test haskey(b, :priority)
-        @test sum(b.action .== 0) == 0
-    end
-
-
-    @testset "Trajectory with CircularArraySARTSTraces and NStepBatchSampler" begin
-        n=1
-        γ=0.99f0
-
-        t = Trajectory(
-            container=CircularArraySARTSTraces(
-                    capacity=5,
-                    state=Float32 => (4,),
-            ),
-            sampler=NStepBatchSampler{SS′ART}(
-                n=n,
-                γ=γ,
-                batch_size=32,
-            ),
-            controller=InsertSampleRatioController(
-                threshold=100,
-                n_inserted=-1
-            )
-        )
-
-        push!(t, (state = 1, action = true))
-        for i = 1:9
-            push!(t, (state = i+1, action = true, reward = i, terminal = false))
+        push!(eb, (state = 7, action = 7))
+        for (j,i) = enumerate(8:11)
+            push!(eb, (state = i, action =i, reward = i-1, terminal = false))
         end
-
-        b = RLTrajectories.StatsBase.sample(t)
-        @test sum(b.action .== 0) == 0
+        weights, ns = ReinforcementLearningTrajectories.valid_range(s1, eb)
+        inds = [i for i in eachindex(weights) if weights[i] == 1]
+        batch = sample(s1, eb)
+        for key in (keys(eb)..., :key, :priority)
+            @test haskey(batch, key)
+        end
     end
 
     @testset "EpisodesSampler" begin
