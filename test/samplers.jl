@@ -1,5 +1,5 @@
 import ReinforcementLearningTrajectories.fetch
-#@testset "Samplers" begin
+@testset "Samplers" begin
     @testset "BatchSampler" begin
         sz = 32
         s = BatchSampler(sz)
