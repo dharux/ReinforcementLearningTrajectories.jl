@@ -162,7 +162,7 @@ Random.rand(rng::AbstractRNG, t::SumTree{T}) where {T} = get(t, rand(rng, T) * t
 Random.rand(t::SumTree) = rand(Random.GLOBAL_RNG, t)
 
 function Random.rand(rng::AbstractRNG, t::SumTree{T}, n::Int) where {T}
-    inds, priorities = Vector{Int}(undef, n), Vector{Float64}(undef, n)
+    inds, priorities = Vector{Int}(undef, n), Vector{T}(undef, n)
     for i in 1:n
         v = (i - 1 + rand(rng, T)) / n
         ind, p = get(t, v * t.tree[1])
