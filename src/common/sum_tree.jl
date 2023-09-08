@@ -135,6 +135,7 @@ function Base.get(t::SumTree, v)
     parent_ind = 1
     leaf_ind = parent_ind
     while true
+        v = min(v, t.tree[parent_ind])
         left_child_ind = parent_ind * 2
         right_child_ind = left_child_ind + 1
         if left_child_ind > length(t.tree)
