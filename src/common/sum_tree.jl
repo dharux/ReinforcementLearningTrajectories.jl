@@ -131,11 +131,28 @@ function Base.empty!(t::SumTree)
     t
 end
 
+function correct_priority(t::SumTree, leaf_ind)
+    p = t.tree[leaf_ind]
+    # walk backwards until p != 0 or until leftmost leaf reached
+    tmp_ind = leaf_ind
+    while p == 0f0 && (tmp_ind-1)*2 > length(t.tree)
+        tmp_ind -= 1
+        p = t.tree[tmp_ind]
+    end
+    # walk forwards until p != 0 or until rightmost leaf reached
+    p == 0f0 && (tmp_ind = leaf_ind)
+    while p == 0f0 && (tmp_ind - t.nparents) <= t.length
+        tmp_ind += 1
+        p = t.tree[tmp_ind]
+    end
+    return p, tmp_ind
+end
+ 
+
 function Base.get(t::SumTree, v)
     parent_ind = 1
     leaf_ind = parent_ind
     while true
-        v = min(v, t.tree[parent_ind])
         left_child_ind = parent_ind * 2
         right_child_ind = left_child_ind + 1
         if left_child_ind > length(t.tree)
@@ -153,7 +170,7 @@ function Base.get(t::SumTree, v)
     if leaf_ind <= t.nparents
         leaf_ind += t.capacity
     end
-    p = t.tree[leaf_ind]
+    p, leaf_ind = correct_priority(t, leaf_ind)
     ind = leaf_ind - t.nparents
     real_ind = ind >= t.first ? ind - t.first + 1 : ind + t.capacity - t.first + 1
     real_ind, p
