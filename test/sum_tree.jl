@@ -55,7 +55,6 @@ nozero_iters=1024
 distr_iters=1024*10_000
 abstol = 0.05
 maxerr=0.01
-sumtree_distribution(n, seeds, distr_iters)
 
 @test sumtree_nozero(n, seeds, nozero_iters)
 @test all(x->all(x .< maxerr) && sum(abs2, x) < abstol,
