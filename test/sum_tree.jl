@@ -49,13 +49,15 @@ function sumtree_distribution(n, seeds::AbstractVector, iters=1000*n)
     return results
 end
 
-n = 1024
-seeds = 1:100
-nozero_iters=1024
-distr_iters=1024*10_000
-abstol = 0.05
-maxerr=0.01
+@testset "SumTree" begin
+    n = 1024
+    seeds = 1:100
+    nozero_iters=1024
+    distr_iters=1024*10_000
+    abstol = 0.05
+    maxerr=0.01
 
-@test sumtree_nozero(n, seeds, nozero_iters)
-@test all(x->all(x .< maxerr) && sum(abs2, x) < abstol,
-          sumtree_distribution(n, seeds, distr_iters))
+    @test sumtree_nozero(n, seeds, nozero_iters)
+    @test all(x->all(x .< maxerr) && sum(abs2, x) < abstol,
+            sumtree_distribution(n, seeds, distr_iters))
+end
