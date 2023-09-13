@@ -131,6 +131,28 @@ function Base.empty!(t::SumTree)
     t
 end
 
+"""
+    correct_sample(t::SumTree, leaf_ind)
+Check whether the sampled leaf is valid and if not return another valid leaf close to it. Used to correct samples with zero priority which may occur due to numerical errors with floats.
+"""
+function correct_sample(t::SumTree, leaf_ind)
+    p = t.tree[leaf_ind]
+    # walk backwards until p != 0 or until leftmost leaf reached
+    tmp_ind = leaf_ind
+    while iszero(p) && (tmp_ind-1)*2 > length(t.tree)
+        tmp_ind -= 1
+        p = t.tree[tmp_ind]
+    end
+    # walk forwards until p != 0 or until rightmost leaf reached
+    iszero(p) && (tmp_ind = leaf_ind)
+    while iszero(p) && (tmp_ind - t.nparents) <= t.length
+        tmp_ind += 1
+        p = t.tree[tmp_ind]
+    end
+    return p, tmp_ind
+end
+ 
+
 function Base.get(t::SumTree, v)
     parent_ind = 1
     leaf_ind = parent_ind
@@ -152,7 +174,7 @@ function Base.get(t::SumTree, v)
     if leaf_ind <= t.nparents
         leaf_ind += t.capacity
     end
-    p = t.tree[leaf_ind]
+    p, leaf_ind = correct_sample(t, leaf_ind)
     ind = leaf_ind - t.nparents
     real_ind = ind >= t.first ? ind - t.first + 1 : ind + t.capacity - t.first + 1
     real_ind, p
