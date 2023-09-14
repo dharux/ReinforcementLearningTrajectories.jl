@@ -76,6 +76,7 @@ function StatsBase.sample(s::BatchSampler, e::EpisodesBuffer{<:Any, <:Any, <:Cir
     w = StatsBase.FrequencyWeights(p)
     w .*= e.sampleable_inds[1:end-1]
     inds = StatsBase.sample(s.rng, eachindex(w), w, s.batchsize)
+    inds = StatsBase.sample(s.rng, eachindex(w), w, s.batch_size)
     NamedTuple{(:key, :priority, names...)}((t.keys[inds], p[inds], map(x -> collect(t.traces[Val(x)][inds]), names)...))
 end
 
@@ -165,6 +166,7 @@ end
 export NStepBatchSampler
 
 """
+
     NStepBatchSampler{names}(; n, γ, batchsize=32, stacksize=nothing, rng=Random.GLOBAL_RNG)
 
 Used to sample a discounted sum of consecutive rewards in the framework of n-step TD learning.
