@@ -2,6 +2,7 @@ using ReinforcementLearningTrajectories
 using CircularArrayBuffers, DataStructures
 using StableRNGs
 using Test
+import ReinforcementLearningTrajectories.StatsBase.sample
 using CUDA
 using Adapt
 using Random
