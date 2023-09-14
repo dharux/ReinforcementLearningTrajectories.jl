@@ -72,10 +72,11 @@ StatsBase.sample(s::BatchSampler{nothing}, t::CircularPrioritizedTraces) = Stats
 
 function StatsBase.sample(s::BatchSampler, e::EpisodesBuffer{<:Any, <:Any, <:CircularPrioritizedTraces}, names)
     t = e.traces
-    st = deepcopy(t.priorities)
-    st .*= e.sampleable_inds[1:end-1] #temporary sumtree that puts 0 priority to non sampleable indices.
-    inds, priorities = rand(s.rng, st, s.batch_size)
-    NamedTuple{(:key, :priority, names...)}((t.keys[inds], priorities, map(x -> collect(t.traces[Val(x)][inds]), names)...))
+    p = collect(deepcopy(t.priorities))
+    w = StatsBase.FrequencyWeights(p)
+    w .*= e.sampleable_inds[1:end-1]
+    inds = StatsBase.sample(s.rng, eachindex(w), w, s.batch_size)
+    NamedTuple{(:key, :priority, names...)}((t.keys[inds], p[inds], map(x -> collect(t.traces[Val(x)][inds]), names)...))
 end
 
 function StatsBase.sample(s::BatchSampler, t::CircularPrioritizedTraces, names)
@@ -242,12 +243,13 @@ fetch(::NStepBatchSampler, trace::AbstractTrace, ::Val, inds, ns) = trace[inds] 
 
 function StatsBase.sample(s::NStepBatchSampler{names}, e::EpisodesBuffer{<:Any, <:Any, <:CircularPrioritizedTraces}) where {names}
     t = e.traces
-    st = deepcopy(t.priorities)
+    p = collect(deepcopy(t.priorities))
+    w = StatsBase.FrequencyWeights(p)
     valids, ns = valid_range(s,e)
-    st .*= valids[1:end-1] #temporary sumtree that puts 0 priority to non sampleable indices.
-    inds, priorities = rand(s.rng, st, s.batch_size)
+    w .*= valids[1:end-1]
+    inds = StatsBase.sample(s.rng, eachindex(w), w, s.batch_size)
     merge(
-        (key=t.keys[inds], priority=priorities),
+        (key=t.keys[inds], priority=p[inds]),
         fetch(s, e, Val(names), inds, ns)
     )
 end

@@ -9,6 +9,7 @@ using Random
 import ReinforcementLearningTrajectories.StatsBase.sample
 import StatsBase.countmap
 
+
 struct TestAdaptor end
 
 gpu(x) = Adapt.adapt(TestAdaptor(), x)
