@@ -192,7 +192,7 @@ for f in (:push!, :pushfirst!, :append!, :prepend!)
 end
 
 function StatsBase.sample(s::BatchSampler, nt::NormalizedTraces, names, weights = StatsBase.UnitWeights{Int}(length(nt)))
-    inds = StatsBase.sample(s.rng, 1:length(nt), weights, s.batch_size)
+    inds = StatsBase.sample(s.rng, 1:length(nt), weights, s.batchsize)
     maybe_normalize(data, key) = key in keys(nt.normalizers) ? normalize(nt.normalizers[key], data) : data
     NamedTuple{names}(collect(maybe_normalize(nt[x][inds], x)) for x in names)
 end
