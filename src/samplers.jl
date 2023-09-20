@@ -302,7 +302,7 @@ end
 #####MultiStepSampler
 
 """
-    MultiStepSampler{names}(batchsize, stacksize, n, rng)
+    MultiStepSampler{names}(batchsize, n, stacksize, rng)
 
 Sampler that fetches steps `[x, x+1, ..., x + n -1]` for each trace of each sampled index 
 `x`. The samples are returned in an array of batchsize elements. For each element, n is 
@@ -312,12 +312,12 @@ the same.
 struct MultiStepSampler{names, S <: Union{Nothing,Int}, R <: AbstractRNG}
     n::Int
     batchsize::Int
-    stacksize::Int
+    stacksize::S
     rng::R 
 end
 
 MultiStepSampler(t::AbstractTraces; kw...) = MultiStepSampler{keys(t)}(; kw...)
-function MultiStepSampler{names}(; n, batchsize=32, stacksize=nothing, rng=Random.default_rng()) where {names} 
+function MultiStepSampler{names}(; n::Int, batchsize, stacksize=nothing, rng=Random.default_rng()) where {names} 
     @assert n >= 1 "n must be ≥ 1."
     ss = stacksize == 1 ? nothing : stacksize
     MultiStepSampler{names, typeof(ss), typeof(rng)}(n, batchsize, ss, rng)
