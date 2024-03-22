@@ -197,36 +197,9 @@ using Test
         @test eb.step_numbers == [1:16;1:16]
         @test length(eb) == 31
     end
-    @testset "with elastic traces" begin
-        t = ElasticArraySARTSTraces(;
-            state=Int => (),
-            action=Int => (),
-            reward=Float32 => (),
-            terminal=Bool => ()
-        )
-
-        eb = EpisodesBuffer(t)
-        push!(eb, (state = 1,)) #partial inserting
-        for i = 1:15
-            push!(eb, (state = i+1, reward =i))
-        end
-        @test length(eb.traces) == 15
-        @test eb.sampleable_inds == [fill(true, 15); [false]]
-        @test all(==(15), eb.episodes_lengths)
-        @test eb.step_numbers == [1:16;]
-        push!(eb, (state = 1,)) #partial inserting
-        for i = 1:15
-            push!(eb, (state = i+1, reward =i))
-        end
-        @test eb.sampleable_inds == [fill(true, 15); [false];fill(true, 15); [false]]
-        @test all(==(15), eb.episodes_lengths)
-        @test eb.step_numbers == [1:16;1:16]
-        @test length(eb) == 31
-    end
-    @testset "with circular traces" begin 
+    @testset "with ElasticArraySARTSTraces traces" begin 
         eb = EpisodesBuffer(
-            CircularArraySARTSTraces(;
-            capacity=10)
+            ElasticArraySARTSTraces()
         )
         #push a first episode l=5 
         push!(eb, (state = 1,))
