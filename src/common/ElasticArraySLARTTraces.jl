@@ -25,11 +25,11 @@ function ElasticArraySLARTTraces(;
     reward_eltype, reward_size = reward
     terminal_eltype, terminal_size = terminal
 
-    MultiplexTraces{SS′}(ElasticArray{state_eltype}(state_size..., capacity + 1)) +
-    MultiplexTraces{LL′}(ElasticArray{legal_actions_mask_eltype}(legal_actions_mask_size..., capacity + 1)) +
-    MultiplexTraces{AA′}(ElasticArray{action_eltype}(action_size..., capacity + 1)) +
+    MultiplexTraces{SS′}(ElasticArray{state_eltype}(undef, state_size..., 0)) +
+    MultiplexTraces{LL′}(ElasticArray{legal_actions_mask_eltype}(undef, legal_actions_mask_size..., 0)) +
+    MultiplexTraces{AA′}(ElasticArray{action_eltype}(undef, action_size..., 0)) +
     Traces(
-        reward=ElasticArray{reward_eltype}(reward_size..., capacity),
-        terminal=ElasticArray{terminal_eltype}(terminal_size..., capacity),
+        reward=ElasticArray{reward_eltype}(undef, reward_size..., 0),
+        terminal=ElasticArray{terminal_eltype}(undef, terminal_size..., 0),        
     )
 end

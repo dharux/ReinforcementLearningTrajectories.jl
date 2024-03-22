@@ -1,6 +1,7 @@
 using ReinforcementLearningTrajectories
 using CircularArrayBuffers
 using Test
+
 @testset "EpisodesBuffer" begin
     @testset "with circular traces" begin 
         eb = EpisodesBuffer(
@@ -282,7 +283,7 @@ using Test
     end
     @testset "with PartialNamedTuple" begin 
         eb = EpisodesBuffer(
-            CircularArraySARTSATraces(;
+            ElasticArraySARTSATraces(;
             capacity=10)
         )
         #push a first episode l=5 

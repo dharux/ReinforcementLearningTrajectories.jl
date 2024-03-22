@@ -21,10 +21,10 @@ function ElasticArraySARTSTraces(;
     reward_eltype, reward_size = reward
     terminal_eltype, terminal_size = terminal
 
-    MultiplexTraces{SS′}(ElasticArray{state_eltype}(state_size..., Inf)) +
+    MultiplexTraces{SS′}(ElasticArray{state_eltype}(undef, state_size..., 0)) +
     Traces(
-        action = ElasticArray{action_eltype}(action_size..., Inf),
-        reward=ElasticArray{reward_eltype}(reward_size..., Inf),
-        terminal=ElasticArray{terminal_eltype}(terminal_size..., Inf),
+        action = ElasticArray{action_eltype}(undef, action_size..., 0),
+        reward=ElasticArray{reward_eltype}(undef, reward_size..., 0),
+        terminal=ElasticArray{terminal_eltype}(undef, terminal_size..., 0),
     )
 end
