@@ -94,15 +94,15 @@ end
     @test batch.terminal == Bool[0, 0, 0] |> gpu
 end
 
-@testset "ElasticArraySARTTraces" begin
-    t = ElasticArraySARTTraces(;
+@testset "ElasticArraySARTSTraces" begin
+    t = ElasticArraySARTSTraces(;
         state=Float32 => (2, 3),
         action=Int => (),
         reward=Float32 => (),
         terminal=Bool => ()
     )
 
-    @test t isa ElasticArraySARTTraces
+    @test t isa ElasticArraySARTSTraces
 
     push!(t, (state=ones(Float32, 2, 3), action=1))
     push!(t, (reward=1.0f0, terminal=false, state=ones(Float32, 2, 3) * 2, action=2))

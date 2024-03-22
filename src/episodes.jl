@@ -1,5 +1,6 @@
 export EpisodesBuffer, PartialNamedTuple
 import DataStructures.CircularBuffer
+using ElasticArrays: ElasticArray, resize_lastdim!
 
 """
     EpisodesBuffer(traces::AbstractTraces)
@@ -90,6 +91,7 @@ function pad!(trace::Trace)
     return nothing
 end
 
+pad!(vect::ElasticArray{T, Vector{T}}) where {T} = pad!(vect, zero(T))
 pad!(buf::CircularArrayBuffer{T,N,A}) where {T,N,A} = push!(buf, zero(T))
 pad!(vect::Vector{T}) where {T} = push!(vect, zero(T))
 

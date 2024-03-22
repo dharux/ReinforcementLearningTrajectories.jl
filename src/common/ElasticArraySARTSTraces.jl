@@ -1,8 +1,8 @@
-export ElasticArraySARTTraces
+export ElasticArraySARTSTraces
 
 using ElasticArrays: ElasticArray, resize_lastdim!
 
-const ElasticArraySARTTraces = Traces{
+const ElasticArraySARTSTraces = Traces{
     SS′AA′RT,
     <:Tuple{
         <:MultiplexTraces{SS′,<:Trace{<:ElasticArray}},
@@ -12,7 +12,7 @@ const ElasticArraySARTTraces = Traces{
     }
 }
 
-function ElasticArraySARTTraces(;
+function ElasticArraySARTSTraces(;
     state=Int => (),
     action=Int => (),
     reward=Float32 => (),
