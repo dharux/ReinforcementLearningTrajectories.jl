@@ -1,6 +1,6 @@
 export EpisodesBuffer, PartialNamedTuple
 import DataStructures.CircularBuffer
-using ElasticArrays: ElasticArray, ElasticVector, resize_lastdim!
+using ElasticArrays: ElasticArray, ElasticVector
 
 """
     EpisodesBuffer(traces::AbstractTraces)

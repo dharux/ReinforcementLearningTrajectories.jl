@@ -3,10 +3,10 @@ export ElasticArraySARTSTraces
 const ElasticArraySARTSTraces = Traces{
     SS′ART,
     <:Tuple{
-        <:MultiplexTraces{SS′,<:Trace{<:ElasticArrayBuffer}},
-        <:Trace{<:ElasticArrayBuffer},
-        <:Trace{<:ElasticArrayBuffer},
-        <:Trace{<:ElasticArrayBuffer},
+        <:MultiplexTraces{SS′,<:Trace{<:ElasticArray}},
+        <:Trace{<:ElasticArray},
+        <:Trace{<:ElasticArray},
+        <:Trace{<:ElasticArray},
     }
 }
 
@@ -21,10 +21,10 @@ function ElasticArraySARTSTraces(;
     reward_eltype, reward_size = reward
     terminal_eltype, terminal_size = terminal
 
-    MultiplexTraces{SS′}(ElasticArrayBuffer{state_eltype}(state_size..., capacity+1)) +
+    MultiplexTraces{SS′}(ElasticArray{state_eltype}(state_size..., Inf)) +
     Traces(
-        action = ElasticArrayBuffer{action_eltype}(action_size..., capacity),
-        reward=ElasticArrayBuffer{reward_eltype}(reward_size..., capacity),
-        terminal=ElasticArrayBuffer{terminal_eltype}(terminal_size..., capacity),
+        action = ElasticArray{action_eltype}(action_size..., Inf),
+        reward=ElasticArray{reward_eltype}(reward_size..., Inf),
+        terminal=ElasticArray{terminal_eltype}(terminal_size..., Inf),
     )
 end

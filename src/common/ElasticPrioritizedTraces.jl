@@ -1,7 +1,9 @@
 export ElasticPrioritizedTraces
 
+using ElasticArrays: ElasticVector
+
 struct ElasticPrioritizedTraces{T,names,Ts} <: AbstractTraces{names,Ts}
-    keys::ElasticVectorBuffer{Int,Vector{Int}}
+    keys::ElasticVector{Int,Vector{Int}}
     priorities::SumTree{Float32}
     traces::T
     default_priority::Float32
@@ -12,7 +14,7 @@ function ElasticPrioritizedTraces(traces::AbstractTraces{names,Ts}; default_prio
     new_Ts = Tuple{Int,Float32,Ts.parameters...}
     c = capacity(traces)
     ElasticPrioritizedTraces{typeof(traces),new_names,new_Ts}(
-        ElasticVectorBuffer{Int}(c),
+        ElasticVector{Int}(c),
         SumTree(c),
         traces,
         default_priority
