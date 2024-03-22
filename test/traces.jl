@@ -139,7 +139,6 @@ end
 
 @testset "build_trace_index ElasticArraySARTSATraces" begin
     t1 = ElasticArraySARTSATraces(;
-        capacity=3,
         state=Float32 => (2, 3),
         action=Float32 => (2,),
         reward=Float32 => (),
@@ -169,6 +168,29 @@ end
 
     @test size(Base.getindex(t1, :reward)) == (1,)
     @test size(Base.getindex(t1, 1).state) == (2,3)
+
+
+    t2 = Traces(; a=[2, 3], b=[false, true])
+    push!(t2, Val(:a), 5)
+    @test t2[:a][3] == 5
+
+    @test size(Base.getindex(t2, :a)) == (3,)
+    @test Base.getindex(t2, 1) == (; a = 2, b= false)
+end
+
+
+@testset "push!(ts::Traces{names,Trs,N,E}, ::Val{k}, v)" begin
+    t1 = ElasticArraySARTSATraces(
+        state=Float32 => (2, 3),
+        action=Float32 => (2,),
+        reward=Float32 => (),
+        terminal=Bool => ()
+    )
+    push!(t1, Val(:reward), 5)
+    @test t1[:reward][1] == 5
+
+    @test size(Base.getindex(t1, :reward)) == (1,)
+    @test size(Base.getindex(t1, :state)) == (0,)
 
 
     t2 = Traces(; a=[2, 3], b=[false, true])
