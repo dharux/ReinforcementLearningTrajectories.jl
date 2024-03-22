@@ -137,6 +137,25 @@ using ReinforcementLearningTrajectories: build_trace_index
     build_trace_index(typeof(t2).parameters[1], typeof(t2).parameters[2])
 end
 
+@testset "build_trace_index ElasticArraySARTSATraces" begin
+    t1 = ElasticArraySARTSATraces(;
+        capacity=3,
+        state=Float32 => (2, 3),
+        action=Float32 => (2,),
+        reward=Float32 => (),
+        terminal=Bool => ()
+    )
+    @test build_trace_index(typeof(t1).parameters[1], typeof(t1).parameters[2]) == Dict(:reward => 3,
+        :next_state => 1,
+        :state => 1,
+        :action => 2,
+        :next_action => 2,
+        :terminal => 4)
+
+    t2 = Traces(; a=[2, 3], b=[false, true])
+    build_trace_index(typeof(t2).parameters[1], typeof(t2).parameters[2])
+end
+
 @testset "push!(ts::Traces{names,Trs,N,E}, ::Val{k}, v)" begin
     t1 = CircularArraySARTSATraces(;
         capacity=3,

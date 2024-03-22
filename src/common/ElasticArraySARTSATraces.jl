@@ -1,4 +1,4 @@
-export ElasticArraySARTSTraces
+export ElasticArraySARTSATraces
 
 const ElasticArraySARTSATraces = Traces{
     SS′AA′RT,

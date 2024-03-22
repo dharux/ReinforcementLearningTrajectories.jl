@@ -85,6 +85,7 @@ end
 ispartial_insert(traces::Traces, xs) = length(xs) < length(traces.traces) #this is the number of traces it contains not the number of steps.
 ispartial_insert(es::EpisodesBuffer, xs) = ispartial_insert(es.traces, xs)
 ispartial_insert(traces::CircularPrioritizedTraces, xs) = ispartial_insert(traces.traces, xs)
+ispartial_insert(traces::ElasticPrioritizedTraces, xs) = ispartial_insert(traces.traces, xs)
 
 function pad!(trace::Trace)
     pad!(trace.parent)
@@ -129,6 +130,8 @@ end
 fill_multiplex(es::EpisodesBuffer) = fill_multiplex(es.traces)
 
 fill_multiplex(es::EpisodesBuffer{<:Any,<:Any,<:CircularPrioritizedTraces}) = fill_multiplex(es.traces.traces)
+
+fill_multiplex(es::EpisodesBuffer{<:Any,<:Any,<:ElasticPrioritizedTraces}) = fill_multiplex(es.traces.traces)
 
 function Base.push!(eb::EpisodesBuffer, xs::NamedTuple)
     push!(eb.traces, xs)

@@ -114,6 +114,8 @@ using Test
         @test eb.episodes_lengths[end] == 0
         @test eb.step_numbers[end] == 1
         @test eb.sampleable_inds == [1,1,1,1,1,0,0]
+        @test eb[:action][6] == 6
+        @test eb[:next_action][6] == 6
         @test eb[6][:reward] == 0 #6 is not a valid index, the reward there is dummy, filled as zero
         ep2_len = 0
         for (j,i) = enumerate(8:11)
@@ -235,7 +237,7 @@ using Test
         end
         @test eb.sampleable_inds == [1,1,1,1,1,0,1,1,1,1,0]
         @test length(eb.traces) == 10
-        #three last steps replace oldest steps in the buffer.
+
         for (i, s) = enumerate(12:13)
             ep2_len += 1
             push!(eb, (state = s, action =s-1, reward = s-1, terminal = false))
@@ -245,16 +247,16 @@ using Test
             @test eb.episodes_lengths[end-ep2_len:end] == fill(ep2_len, ep2_len + 1)
         end
         #episode 1
-        for (i,s) in enumerate(3:13)
-            if i in (4, 11)
+        for i in 3:13
+            if i in (6, 13)
                 @test eb.sampleable_inds[i] == 0
                 continue
             else
                 @test eb.sampleable_inds[i] == 1
             end
             b = eb[i]
-            @test b[:state] == b[:action] == b[:reward] == s
-            @test b[:next_state] == s + 1
+            @test b[:state] == b[:action] == b[:reward] == i
+            @test b[:next_state] == i + 1
         end
         #episode 2
         #start a third episode
@@ -263,13 +265,14 @@ using Test
         @test eb.sampleable_inds[end-1] == 0
         @test eb.episodes_lengths[end] == 0
         @test eb.step_numbers[end] == 1
-        #push until it reaches it own start
+
         for (i,s) in enumerate(15:26)
             push!(eb, (state = s, action =s-1, reward = s-1, terminal = false))
         end
-        @test eb.sampleable_inds == [fill(true, 10); [false]]
-        @test eb.episodes_lengths == fill(length(15:26), 11)
-        @test eb.step_numbers == [3:13;]
+        @test eb.sampleable_inds[end-5:end] == [fill(true, 5); [false]]
+        @test eb.episodes_lengths[end-10:end] == fill(length(15:26), 11)
+        @test eb.step_numbers[end-10:end] == [3:13;]
+        #= Deactivated until https://github.com/JuliaArrays/ElasticArrays.jl/pull/56/files merged and pop!/popfirst! added to ElasticArrays
         step = popfirst!(eb)
         @test length(eb) == length(eb.sampleable_inds) - 1 == length(eb.step_numbers) - 1 == length(eb.episodes_lengths) - 1 == 9
         @test first(eb.step_numbers) == 4
@@ -280,11 +283,11 @@ using Test
         empty!(eb)
         @test size(eb) == (0,) == size(eb.traces) == size(eb.sampleable_inds) == size(eb.episodes_lengths) == size(eb.step_numbers)
         show(eb); 
+        =#
     end
-    @testset "with PartialNamedTuple" begin 
+    @testset "ElasticArraySARTSATraces with PartialNamedTuple" begin 
         eb = EpisodesBuffer(
-            ElasticArraySARTSATraces(;
-            capacity=10)
+            ElasticArraySARTSATraces()
         )
         #push a first episode l=5 
         push!(eb, (state = 1,))
@@ -308,6 +311,8 @@ using Test
         @test eb.episodes_lengths[end] == 0
         @test eb.step_numbers[end] == 1
         @test eb.sampleable_inds == [1,1,1,1,1,0,0]
+        @test eb[:action][6] == 6
+        @test eb[:next_action][6] == 6
         @test eb[6][:reward] == 0 #6 is not a valid index, the reward there is dummy, filled as zero
         ep2_len = 0
         for (j,i) = enumerate(8:11)
@@ -358,6 +363,7 @@ using Test
         @test eb.sampleable_inds == [fill(true, 10); [false]]
         @test eb.episodes_lengths == fill(length(15:26), 11)
         @test eb.step_numbers == [3:13;]
+        #= Deactivated until https://github.com/JuliaArrays/ElasticArrays.jl/pull/56/files merged and pop!/popfirst! added to ElasticArrays
         step = popfirst!(eb)
         @test length(eb) == length(eb.sampleable_inds) - 1 == length(eb.step_numbers) - 1 == length(eb.episodes_lengths) - 1 == 9
         @test first(eb.step_numbers) == 4
@@ -368,5 +374,6 @@ using Test
         empty!(eb)
         @test size(eb) == (0,) == size(eb.traces) == size(eb.sampleable_inds) == size(eb.episodes_lengths) == size(eb.step_numbers)
         show(eb); 
+        =#
     end
 end
