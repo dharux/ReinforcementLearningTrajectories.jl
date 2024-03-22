@@ -3,6 +3,7 @@ export Trace, Traces, MultiplexTraces
 import MacroTools: @forward
 
 import CircularArrayBuffers.CircularArrayBuffer
+using ElasticArrays: ElasticArray
 import Adapt
 
 #####
@@ -55,6 +56,7 @@ Base.setindex!(s::Trace, v, I) = setindex!(s.parent, v, ntuple(i -> i == ndims(s
 capacity(t::AbstractTrace) = ReinforcementLearningTrajectories.capacity(t.parent)
 capacity(t::CircularArrayBuffer) = CircularArrayBuffers.capacity(t)
 capacity(::AbstractVector) = Inf
+capacity(::ElasticArray) = Inf
 
 #####
 

@@ -1,8 +1,6 @@
-export ElasticArraySARTTraces
+export ElasticArraySARTSATraces
 
-using ElasticArrays: ElasticArray, resize_lastdim!
-
-const ElasticArraySARTTraces = Traces{
+const ElasticArraySARTSATraces = Traces{
     SS′AA′RT,
     <:Tuple{
         <:MultiplexTraces{SS′,<:Trace{<:ElasticArray}},
@@ -12,7 +10,7 @@ const ElasticArraySARTTraces = Traces{
     }
 }
 
-function ElasticArraySARTTraces(;
+function ElasticArraySARTSATraces(;
     state=Int => (),
     action=Int => (),
     reward=Float32 => (),
@@ -31,10 +29,3 @@ function ElasticArraySARTTraces(;
     )
 end
 
-#####
-# extensions for ElasticArrays
-#####
-
-Base.push!(a::ElasticArray, x) = append!(a, x)
-Base.push!(a::ElasticArray{T,1}, x) where {T} = append!(a, [x])
-Base.empty!(a::ElasticArray) = resize_lastdim!(a, 0)
