@@ -138,6 +138,8 @@ fill_multiplex(eb::EpisodesBuffer) = fill_multiplex(eb.traces)
 
 fill_multiplex(eb::EpisodesBuffer{<:Any,<:Any,<:CircularPrioritizedTraces}) = fill_multiplex(eb.traces.traces)
 
+max_length(eb::EpisodesBuffer) = max_length(eb.traces)
+
 function Base.push!(eb::EpisodesBuffer, xs::NamedTuple)
     push!(eb.traces, xs)
     partial = ispartial_insert(eb, xs)
@@ -168,6 +170,14 @@ function Base.push!(eb::EpisodesBuffer, xs::NamedTuple)
 end
 
 function Base.push!(eb::EpisodesBuffer, xs::PartialNamedTuple) #wrap a NamedTuple to push without incrementing the step number. 
+    push!(eb.traces, xs.namedtuple)
+    eb.sampleable_inds[end-1] = 1 #completes the episode trajectory.
+end
+
+function Base.push!(eb::EpisodesBuffer{<:Any,<:Any,<:CircularArraySARTSATraces}, xs::PartialNamedTuple)
+    if max_length(eb) == capacity(eb.traces)    # if the traces are already full, remove the first one before adding to keep :state and :action in sync
+        popfirst!(eb)
+    end
     push!(eb.traces, xs.namedtuple)
     eb.sampleable_inds[end-1] = 1 #completes the episode trajectory.
 end
