@@ -24,7 +24,7 @@
     @test length(t) == 0
 end
 
-@testset "CircularArraySARTSTraces" begin
+@testset "CircularArraySARTSATraces" begin
     t = CircularArraySARTSATraces(;
         capacity=3,
         state=Float32 => (2, 3),
@@ -35,13 +35,14 @@ end
 
     @test t isa CircularArraySARTSATraces
 
-    push!(t, (state=ones(Float32, 2, 3), action=ones(Float32, 2)) |> gpu)
+    push!(t, (state=ones(Float32, 2, 3),))
+    push!(t, (action=ones(Float32, 2), next_state=ones(Float32, 2, 3) * 2) |> gpu)
     @test length(t) == 0
 
     push!(t, (reward=1.0f0, terminal=false) |> gpu)
-    @test length(t) == 0 # next_state and next_action is still missing
+    @test length(t) == 0 # next_action is still missing
 
-    push!(t, (next_state=ones(Float32, 2, 3) * 2, next_action=ones(Float32, 2) * 2) |> gpu)
+    push!(t, (state=ones(Float32, 2, 3) * 3, action=ones(Float32, 2) * 2) |> gpu)
     @test length(t) == 1
 
     # this will trigger the scalar indexing of CuArray
@@ -55,17 +56,18 @@ end
     )
 
     push!(t, (reward=2.0f0, terminal=false))
-    push!(t, (state=ones(Float32, 2, 3) * 3, action=ones(Float32, 2) * 3) |> gpu)
+    push!(t, (state=ones(Float32, 2, 3) * 4, action=ones(Float32, 2) * 3) |> gpu)
 
     @test length(t) == 2
 
     push!(t, (reward=3.0f0, terminal=false))
-    push!(t, (state=ones(Float32, 2, 3) * 4, action=ones(Float32, 2) * 4) |> gpu)
+    push!(t, (state=ones(Float32, 2, 3) * 5, action=ones(Float32, 2) * 4) |> gpu)
 
     @test length(t) == 3
 
     push!(t, (reward=4.0f0, terminal=false))
-    push!(t, (state=ones(Float32, 2, 3) * 5, action=ones(Float32, 2) * 5) |> gpu)
+    push!(t, (state=ones(Float32, 2, 3) * 6, action=ones(Float32, 2) * 5) |> gpu)
+    push!(t, (reward=5.0f0, terminal=false))
 
     @test length(t) == 3
 

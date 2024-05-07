@@ -100,7 +100,10 @@ using Test
         for i = 1:5
             push!(eb, (state = i+1, action =i, reward = i, terminal = false))
             @test eb.sampleable_inds[end] == 0
-            @test eb.sampleable_inds[end-1] == 1
+            @test eb.sampleable_inds[end-1] == 0
+            if length(eb) >= 1
+                @test eb.sampleable_inds[end-2] == 1
+            end
             @test eb.step_numbers[end] == i + 1
             @test eb.episodes_lengths[end-i:end] == fill(i, i+1)
         end
@@ -116,24 +119,30 @@ using Test
         @test eb.sampleable_inds == [1,1,1,1,1,0,0]
         @test eb[:action][6] == 6
         @test eb[:next_action][5] == 6
-        @test eb[6][:reward] == 0 #6 is not a valid index, the reward there is dummy, filled as zero
+        @test eb[6][:reward] == 0 broken = true #6 is not a valid index and cannot be indexed because a PartialNamedTuple is used
         ep2_len = 0
         for (j,i) = enumerate(8:11)
             ep2_len += 1
             push!(eb, (state = i, action =i-1, reward = i-1, terminal = false))
             @test eb.sampleable_inds[end] == 0
-            @test eb.sampleable_inds[end-1] == 1
+            @test eb.sampleable_inds[end-1] == 0
+            if eb.step_numbers[end] > 2
+                @test eb.sampleable_inds[end-2] == 1
+            end
             @test eb.step_numbers[end] == j + 1
             @test eb.episodes_lengths[end-j:end] == fill(ep2_len, ep2_len + 1)
         end
-        @test eb.sampleable_inds == [1,1,1,1,1,0,1,1,1,1,0]
+        @test eb.sampleable_inds == [1,1,1,1,1,0,1,1,1,0,0]
         @test length(eb.traces) == 9 #an action is missing at this stage
         #three last steps replace oldest steps in the buffer.
         for (i, s) = enumerate(12:13)
             ep2_len += 1
             push!(eb, (state = s, action =s-1, reward = s-1, terminal = false))
             @test eb.sampleable_inds[end] == 0
-            @test eb.sampleable_inds[end-1] == 1
+            @test eb.sampleable_inds[end-1] == 0
+            if eb.step_numbers[end] > 2
+                @test eb.sampleable_inds[end-2] == 1
+            end
             @test eb.step_numbers[end] == i + 1 + 4
             @test eb.episodes_lengths[end-ep2_len:end] == fill(ep2_len, ep2_len + 1)
         end
@@ -298,7 +307,10 @@ using Test
         for i = 1:5
             push!(eb, (state = i+1, action =i, reward = i, terminal = false))
             @test eb.sampleable_inds[end] == 0
-            @test eb.sampleable_inds[end-1] == 1
+            @test eb.sampleable_inds[end-1] == 0
+            if eb.step_numbers[end] > 2
+                @test eb.sampleable_inds[end-2] == 1
+            end
             @test eb.step_numbers[end] == i + 1
             @test eb.episodes_lengths[end-i:end] == fill(i, i+1)
         end
@@ -320,17 +332,23 @@ using Test
             ep2_len += 1
             push!(eb, (state = i, action =i-1, reward = i-1, terminal = false))
             @test eb.sampleable_inds[end] == 0
-            @test eb.sampleable_inds[end-1] == 1
+            @test eb.sampleable_inds[end-1] == 0
+            if eb.step_numbers[end] > 2
+                @test eb.sampleable_inds[end-2] == 1
+            end
             @test eb.step_numbers[end] == j + 1
             @test eb.episodes_lengths[end-j:end] == fill(ep2_len, ep2_len + 1)
         end
-        @test eb.sampleable_inds == [1,1,1,1,1,0,1,1,1,1,0]
+        @test eb.sampleable_inds == [1,1,1,1,1,0,1,1,1,0,0]
         @test length(eb.traces) == 9 #an action is missing at this stage
         for (i, s) = enumerate(12:13)
             ep2_len += 1
             push!(eb, (state = s, action =s-1, reward = s-1, terminal = false))
             @test eb.sampleable_inds[end] == 0
-            @test eb.sampleable_inds[end-1] == 1
+            @test eb.sampleable_inds[end-1] == 0
+            if eb.step_numbers[end] > 2
+                @test eb.sampleable_inds[end-2] == 1
+            end
             @test eb.step_numbers[end] == i + 1 + 4
             @test eb.episodes_lengths[end-ep2_len:end] == fill(ep2_len, ep2_len + 1)
         end

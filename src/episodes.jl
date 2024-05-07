@@ -138,6 +138,8 @@ fill_multiplex(eb::EpisodesBuffer) = fill_multiplex(eb.traces)
 
 fill_multiplex(eb::EpisodesBuffer{<:Any,<:Any,<:CircularPrioritizedTraces}) = fill_multiplex(eb.traces.traces)
 
+max_length(eb::EpisodesBuffer) = max_length(eb.traces)
+
 function Base.push!(eb::EpisodesBuffer, xs::NamedTuple)
     push!(eb.traces, xs)
     partial = ispartial_insert(eb, xs)
@@ -146,10 +148,12 @@ function Base.push!(eb::EpisodesBuffer, xs::NamedTuple)
         push!(eb.episodes_lengths, 0)
         push!(eb.sampleable_inds, 0)
     elseif !partial #typical inserting
-        if length(eb.traces) < length(eb) && length(eb) > 2 #case when PartialNamedTuple is used. Steps are indexable one step later
-            eb.sampleable_inds[end-1] = 1 
-        else #case when we don't, length of traces and eb will match.
-            eb.sampleable_inds[end] = 1 #previous step is now indexable
+        if haskey(eb,:next_action) && length(eb) < max_length(eb) # if trace has next_action and lengths are mismatched 
+            if eb.step_numbers[end] > 1            # and if there are sufficient steps in the current episode
+                eb.sampleable_inds[end-1] = 1      # steps are indexable one step later
+            end
+        else
+            eb.sampleable_inds[end] = 1          # otherwise, previous step is now indexable
         end
         push!(eb.sampleable_inds, 0) #this one is no longer
         ep_length = last(eb.step_numbers)
@@ -168,6 +172,14 @@ function Base.push!(eb::EpisodesBuffer, xs::NamedTuple)
 end
 
 function Base.push!(eb::EpisodesBuffer, xs::PartialNamedTuple) #wrap a NamedTuple to push without incrementing the step number. 
+    push!(eb.traces, xs.namedtuple)
+    eb.sampleable_inds[end-1] = 1 #completes the episode trajectory.
+end
+
+function Base.push!(eb::EpisodesBuffer{<:Any,<:Any,<:CircularArraySARTSATraces}, xs::PartialNamedTuple)
+    if max_length(eb) == capacity(eb.traces)
+        popfirst!(eb)
+    end
     push!(eb.traces, xs.namedtuple)
     eb.sampleable_inds[end-1] = 1 #completes the episode trajectory.
 end
