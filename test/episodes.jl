@@ -119,7 +119,8 @@ using Test
         @test eb.sampleable_inds == [1,1,1,1,1,0,0]
         @test eb[:action][6] == 6
         @test eb[:next_action][5] == 6
-        @test eb[6][:reward] == 0 broken = true #6 is not a valid index and cannot be indexed because a PartialNamedTuple is used
+        @test eb[:reward][6] == 0 #6 is not a valid index, the reward there is dummy, filled as zero
+        @test_throws BoundsError eb[6]  #6 is not a valid index, the reward there is dummy, filled as zero
         ep2_len = 0
         for (j,i) = enumerate(8:11)
             ep2_len += 1
