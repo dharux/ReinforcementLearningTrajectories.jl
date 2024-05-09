@@ -187,7 +187,7 @@ end
 function Base.push!(eb::EpisodesBuffer{<:Any,<:Any,<:CircularPrioritizedTraces{<:CircularArraySARTSATraces}}, xs::PartialNamedTuple{@NamedTuple{action::Int64}})
     if max_length(eb) == capacity(eb.traces)
         addition = (name => zero(eltype(eb.traces[name])) for name in [:state, :reward, :terminal])
-        xs = (xs.namedtuple, addition)
+        xs = merge(xs.namedtuple, addition)
         push!(eb.traces, xs)
         pop!(eb.traces[:state].trace)
         pop!(eb.traces[:reward])
