@@ -184,6 +184,20 @@ function Base.push!(eb::EpisodesBuffer{<:Any,<:Any,<:CircularArraySARTSATraces},
     eb.sampleable_inds[end-1] = 1 #completes the episode trajectory.
 end
 
+function Base.push!(eb::EpisodesBuffer{<:Any,<:Any,<:CircularPrioritizedTraces{<:CircularArraySARTSATraces}}, xs::PartialNamedTuple{@NamedTuple{action::Int64}})
+    if max_length(eb) == capacity(eb.traces)
+        addition = (name => zero(eltype(eb.traces[name])) for name in [:state, :reward, :terminal])
+        xs = (xs.namedtuple, addition)
+        push!(eb.traces, xs)
+        pop!(eb.traces[:state].trace)
+        pop!(eb.traces[:reward])
+        pop!(eb.traces[:terminal])
+    else
+        push!(eb.traces, xs.namedtuple)
+        eb.sampleable_inds[end-1] = 1
+    end
+end
+
 for f in (:pop!, :popfirst!)
     @eval function Base.$f(eb::EpisodesBuffer)
         $f(eb.episodes_lengths)
