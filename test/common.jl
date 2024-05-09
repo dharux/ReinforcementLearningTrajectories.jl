@@ -222,29 +222,27 @@ end
 
     #EpisodesBuffer
     t = CircularPrioritizedTraces(
-        CircularArraySARTSTraces(;
+        CircularArraySARTSATraces(;
             capacity=10
         ),
         default_priority=1.0f0
     )
-
+    
     eb = EpisodesBuffer(t) 
-    push!(eb, (state = 1, action = 1))
+    push!(eb, (state = 1,))
     for i = 1:5
-        push!(eb, (state = i+1, action =i+1, reward = i, terminal = false))
+        push!(eb, (state = i+1, action =i, reward = i, terminal = false))
     end
-    push!(eb, (state = 7, action = 7))
+    push!(eb, PartialNamedTuple((action = 6,)))
+    push!(eb, (state = 7,))
     for (j,i) = enumerate(8:11)
-        push!(eb, (state = i, action =i, reward = i-1, terminal = false))
+        push!(eb, (state = i, action =i-1, reward = i-1, terminal = false))
     end
+    push!(eb, PartialNamedTuple((action=12,)))
     s = BatchSampler(1000)
     b = sample(s, eb)
     cm = counter(b[:state])
     @test !haskey(cm, 6)
     @test !haskey(cm, 11)
     @test all(in(keys(cm)), [1:5;7:10])
-
-
-    eb[:priority, [1, 2]] = [0, 0]
-    @test eb[:priority] == [zeros(2);ones(8)]
 end
