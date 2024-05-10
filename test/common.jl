@@ -24,7 +24,7 @@
     @test length(t) == 0
 end
 
-@testset "CircularArraySARTSTraces" begin
+@testset "CircularArraySARTSATraces" begin
     t = CircularArraySARTSATraces(;
         capacity=3,
         state=Float32 => (2, 3),
@@ -35,13 +35,14 @@ end
 
     @test t isa CircularArraySARTSATraces
 
-    push!(t, (state=ones(Float32, 2, 3), action=ones(Float32, 2)) |> gpu)
+    push!(t, (state=ones(Float32, 2, 3),))
+    push!(t, (action=ones(Float32, 2), next_state=ones(Float32, 2, 3) * 2) |> gpu)
     @test length(t) == 0
 
     push!(t, (reward=1.0f0, terminal=false) |> gpu)
-    @test length(t) == 0 # next_state and next_action is still missing
+    @test length(t) == 0 # next_action is still missing
 
-    push!(t, (next_state=ones(Float32, 2, 3) * 2, next_action=ones(Float32, 2) * 2) |> gpu)
+    push!(t, (state=ones(Float32, 2, 3) * 3, action=ones(Float32, 2) * 2) |> gpu)
     @test length(t) == 1
 
     # this will trigger the scalar indexing of CuArray
@@ -55,17 +56,18 @@ end
     )
 
     push!(t, (reward=2.0f0, terminal=false))
-    push!(t, (state=ones(Float32, 2, 3) * 3, action=ones(Float32, 2) * 3) |> gpu)
+    push!(t, (state=ones(Float32, 2, 3) * 4, action=ones(Float32, 2) * 3) |> gpu)
 
     @test length(t) == 2
 
     push!(t, (reward=3.0f0, terminal=false))
-    push!(t, (state=ones(Float32, 2, 3) * 4, action=ones(Float32, 2) * 4) |> gpu)
+    push!(t, (state=ones(Float32, 2, 3) * 5, action=ones(Float32, 2) * 4) |> gpu)
 
     @test length(t) == 3
 
     push!(t, (reward=4.0f0, terminal=false))
-    push!(t, (state=ones(Float32, 2, 3) * 5, action=ones(Float32, 2) * 5) |> gpu)
+    push!(t, (state=ones(Float32, 2, 3) * 6, action=ones(Float32, 2) * 5) |> gpu)
+    push!(t, (reward=5.0f0, terminal=false))
 
     @test length(t) == 3
 
@@ -127,7 +129,67 @@ end
     @test t isa CircularArraySLARTTraces
 end
 
-@testset "CircularPrioritizedTraces" begin
+@testset "CircularPrioritizedTraces-SARTS" begin
+    t = CircularPrioritizedTraces(
+        CircularArraySARTSTraces(;
+            capacity=3
+        ),
+        default_priority=1.0f0
+    )
+
+    push!(t, (state=0, action=0))
+
+    for i in 1:5
+        push!(t, (reward=1.0f0, terminal=false, state=i, action=i))
+    end
+
+    @test length(t) == 3
+
+    s = BatchSampler(5)
+
+    b = sample(s, t)
+
+    t[:priority, [1, 2]] = [0, 0]
+
+    # shouldn't be changed since [1,2] are old keys
+    @test t[:priority] == [1.0f0, 1.0f0, 1.0f0]
+
+    t[:priority, [3, 4, 5]] = [0, 1, 0]
+
+    b = sample(s, t)
+
+    @test b.key == [4, 4, 4, 4, 4] # the priority of the rest transitions are set to 0
+
+    #EpisodesBuffer
+    t = CircularPrioritizedTraces(
+        CircularArraySARTSTraces(;
+            capacity=10
+        ),
+        default_priority=1.0f0
+    )
+
+    eb = EpisodesBuffer(t) 
+    push!(eb, (state = 1, action = 1))
+    for i = 1:5
+        push!(eb, (state = i+1, action =i+1, reward = i, terminal = false))
+    end
+    push!(eb, (state = 7, action = 7))
+    for (j,i) = enumerate(8:11)
+        push!(eb, (state = i, action =i, reward = i-1, terminal = false))
+    end
+    s = BatchSampler(1000)
+    b = sample(s, eb)
+    cm = counter(b[:state])
+    @test !haskey(cm, 6)
+    @test !haskey(cm, 11)
+    @test all(in(keys(cm)), [1:5;7:10])
+
+
+    eb[:priority, [1, 2]] = [0, 0]
+    @test eb[:priority] == [zeros(2);ones(8)]
+end
+
+@testset "CircularPrioritizedTraces-SARTSA" begin
     t = CircularPrioritizedTraces(
         CircularArraySARTSATraces(;
             capacity=3
@@ -165,24 +227,22 @@ end
         ),
         default_priority=1.0f0
     )
-
+    
     eb = EpisodesBuffer(t) 
-    push!(eb, (state = 1, action = 1))
+    push!(eb, (state = 1,))
     for i = 1:5
-        push!(eb, (state = i+1, action =i+1, reward = i, terminal = false))
+        push!(eb, (state = i+1, action =i, reward = i, terminal = false))
     end
-    push!(eb, (state = 7, action = 7))
+    push!(eb, PartialNamedTuple((action = 6,)))
+    push!(eb, (state = 7,))
     for (j,i) = enumerate(8:11)
-        push!(eb, (state = i, action =i, reward = i-1, terminal = false))
+        push!(eb, (state = i, action =i-1, reward = i-1, terminal = false))
     end
+    push!(eb, PartialNamedTuple((action=12,)))
     s = BatchSampler(1000)
     b = sample(s, eb)
     cm = counter(b[:state])
     @test !haskey(cm, 6)
     @test !haskey(cm, 11)
     @test all(in(keys(cm)), [1:5;7:10])
-
-
-    eb[:priority, [1, 2]] = [0, 0]
-    @test eb[:priority] == [zeros(2);ones(8)]
 end

@@ -247,6 +247,7 @@ function Base.:(+)(t1::Traces{k1,T1,N1,E1}, t2::Traces{k2,T2,N2,E2}) where {k1,T
 end
 
 Base.size(t::Traces) = (mapreduce(length, min, t.traces),)
+max_length(t::Traces) = mapreduce(length, max, t.traces)
 
 function capacity(t::Traces{names,Trs,N,E}) where {names,Trs,N,E}
     minimum(map(idx->capacity(t[idx]), names))
