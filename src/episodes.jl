@@ -177,7 +177,7 @@ function Base.push!(eb::EpisodesBuffer, xs::PartialNamedTuple) #wrap a NamedTupl
 end
 
 function Base.push!(eb::EpisodesBuffer{<:Any,<:Any,<:CircularArraySARTSATraces}, xs::PartialNamedTuple)
-    if max_length(eb) == capacity(eb.traces)
+    if max_length(eb) == capacity(eb.traces)    # if the traces are already full, remove the first one before adding to keep :state and :action in sync
         popfirst!(eb)
     end
     push!(eb.traces, xs.namedtuple)
