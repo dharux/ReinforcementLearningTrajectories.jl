@@ -130,15 +130,17 @@ import ReinforcementLearningTrajectories.fetch
         batchsize = 4
         eb = EpisodesBuffer(CircularPrioritizedTraces(CircularArraySARTSATraces(capacity=10), default_priority = 10f0)) 
         s1 = NStepBatchSampler(eb, n=n_horizon, γ=γ, batchsize=batchsize)
-
-        push!(eb, (state = 1, action = 1))
+        
+        push!(eb, (state = 1,))
         for i = 1:5
-            push!(eb, (state = i+1, action =i+1, reward = i, terminal = i == 5))
+            push!(eb, (state = i+1, action =i, reward = i, terminal = i == 5))
         end
-        push!(eb, (state = 7, action = 7))
-        for (j,i) = enumerate(8:11)
-            push!(eb, (state = i, action =i, reward = i-1, terminal = false))
+        push!(eb, PartialNamedTuple((action=6,)))
+        push!(eb, (state = 7,))
+        for (j,i) = enumerate(7:10)
+            push!(eb, (state = i+1, action =i, reward = i, terminal = i==10))
         end
+        push!(eb, PartialNamedTuple((action = 11,)))
         weights, ns = ReinforcementLearningTrajectories.valid_range(s1, eb)
         inds = [i for i in eachindex(weights) if weights[i] == 1]
         batch = sample(s1, eb)

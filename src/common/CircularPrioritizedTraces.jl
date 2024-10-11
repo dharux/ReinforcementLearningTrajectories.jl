@@ -12,7 +12,11 @@ end
 function CircularPrioritizedTraces(traces::AbstractTraces{names,Ts}; default_priority) where {names,Ts}
     new_names = (:key, :priority, names...)
     new_Ts = Tuple{Int,Float32,Ts.parameters...}
-    c = capacity(traces)
+    if traces isa CircularArraySARTSATraces
+        c = capacity(traces) - 1
+    else
+        c = capacity(traces)
+    end
     CircularPrioritizedTraces{typeof(traces),new_names,new_Ts}(
         CircularVectorBuffer{Int}(c),
         SumTree(c),
@@ -34,6 +38,22 @@ function Base.push!(t::CircularPrioritizedTraces, x)
     end
 end
 
+function Base.push!(t::CircularPrioritizedTraces{<:CircularArraySARTSATraces}, x)
+    initial_length = length(t.traces)
+    push!(t.traces, x)
+    if length(t.traces) == 1
+        push!(t.keys, 1)
+        push!(t.priorities, t.default_priority)
+    elseif length(t.traces) > 1 && (initial_length < length(t.traces) || initial_length == capacity(t.traces)-1 ) 
+        # only add a key if the length changes after insertion of the tuple
+        # or if the trace is already at capacity
+        push!(t.keys, t.keys[end] + 1)
+        push!(t.priorities, t.default_priority)
+    else
+        # may be partial inserting at the first step, ignore it
+    end
+end
+
 function Base.setindex!(t::CircularPrioritizedTraces, vs, k::Symbol, keys)
     if k === :priority
         @assert length(vs) == length(keys)
@@ -48,6 +68,7 @@ function Base.setindex!(t::CircularPrioritizedTraces, vs, k::Symbol, keys)
 end
 
 Base.size(t::CircularPrioritizedTraces) = size(t.traces)
+max_length(t::CircularPrioritizedTraces) = max_length(t.traces)
 
 function Base.getindex(ts::CircularPrioritizedTraces, s::Symbol)
     if s === :priority
