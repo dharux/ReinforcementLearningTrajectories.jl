@@ -53,8 +53,8 @@ function StatsBase.sample(s::BatchSampler, t::AbstractTraces, names, weights = S
     NamedTuple{names}(map(x -> collect(t[Val(x)][inds]), names))
 end
 
-function StatsBase.sample(s::BatchSampler, t::EpisodesBuffer, names)
-    StatsBase.sample(s, t.traces, names, StatsBase.FrequencyWeights(t.sampleable_inds[1:end-1]))
+function StatsBase.sample(s::BatchSampler, e::EpisodesBuffer, names)
+    StatsBase.sample(s, e.traces, names, StatsBase.FrequencyWeights(e.sampleable_inds[1:length(e.traces)]))
 end
 
 # !!! avoid iterating an empty trajectory
