@@ -4,7 +4,6 @@ import MacroTools: @forward
 
 import CircularArrayBuffers.CircularArrayBuffer
 using ElasticArrays: ElasticArray
-using Memoize
 import Adapt
 
 #####
@@ -250,7 +249,7 @@ end
 Base.size(t::Traces) = (mapreduce(length, min, t.traces),)
 max_length(t::Traces) = mapreduce(length, max, t.traces)
 
-@memoize function capacity(t::Traces{names,Trs,N,E}) where {names,Trs,N,E}
+function capacity(t::Traces{names,Trs,N,E}) where {names,Trs,N,E}
     minimum(map(idx->capacity(t[idx]), names))
 end
 
