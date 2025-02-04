@@ -59,12 +59,12 @@ function EpisodesBuffer(traces::AbstractTraces)
     if !isinf(cap)
         legalinds =  CircularBuffer{Bool}(cap)
         step_numbers = CircularBuffer{Int}(cap)
-        eplengths = CircularBuffer{Int}(cap)
+        eplengths = deepcopy(step_numbers)
         EpisodesBuffer(traces, legalinds, step_numbers, eplengths)
     else
         legalinds =  BitVector()
         step_numbers = Vector{Int}()
-        eplengths = Vector{Int}()
+        eplengths = deepcopy(step_numbers)
         EpisodesBuffer(traces, legalinds, step_numbers, eplengths)
     end
 end
