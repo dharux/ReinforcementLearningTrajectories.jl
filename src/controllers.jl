@@ -1,4 +1,4 @@
-export InsertSampleRatioController, AsyncInsertSampleRatioController, EpisodeSampleRatioController
+export InsertSampleRatioController, AsyncInsertSampleRatioController, EpisodeSampleRatioController, SingleSampleController
 
 """
     InsertSampleRatioController(;ratio=1., threshold=1)
@@ -85,4 +85,26 @@ function on_sample!(c::EpisodeSampleRatioController)
         return true
     end
     return false
+end
+
+"""
+    SingleSampleController()
+
+Always allows a single sampling of the trajectory regardless of 
+previous insertions or samples. i.e. when calling iterate on the
+trajectory, the sampler is only called once.
+"""
+
+mutable struct SingleSampleController
+    sampled::Bool
+    function SingleSampleController()
+        return new(false)
+    end
+end
+
+function RLTrajectories.on_insert!(::SingleSampleController, ::Int, ::Any) end
+
+function RLTrajectories.on_sample!(c::SingleSampleController)
+    c.sampled = !c.sampled
+    return c.sampled
 end

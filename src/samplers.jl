@@ -1,5 +1,5 @@
 using Random
-export EpisodesSampler, Episode, BatchSampler, NStepBatchSampler, MetaSampler, MultiBatchSampler, DummySampler, MultiStepSampler
+export EpisodesSampler, Episode, BatchSampler, NStepBatchSampler, MetaSampler, MultiBatchSampler, DummySampler, MultiStepSampler, LastSampler, SingleSampler
 
 struct SampleGenerator{S,T}
     sampler::S
@@ -21,6 +21,90 @@ Just return the underlying traces.
 struct DummySampler end
 
 StatsBase.sample(::DummySampler, t) = t
+
+#####
+# LastStepSampler
+#####
+
+export LastSampler
+
+struct LastSampler{names} end
+
+"""
+    LastSampler(){names}
+
+Returns the last full step in the trajectory
+"""
+
+LastSampler() = LastSampler{nothing}()
+
+function StatsBase.sample(::LastSampler{nothing}, t::AbstractTraces) 
+    idx = findlast(t.sampleable_inds)
+    t[idx]
+end
+
+function StatsBase.sample(::LastSampler{names}, t::AbstractTraces) where {names} 
+    idx = findlast(t.sampleable_inds)
+    NamedTuple{names}(map(x -> t[Val(x)][idx], names))
+end
+
+#####
+# SingleSampler
+#####
+
+export SingleSampler
+
+struct SingleSampler{names}
+    rng::Random.AbstractRNG
+end
+
+"""
+    SingleSampler{names}(; rng=Random.GLOBAL_RNG)
+
+Uniformly sample **ONE** batch of 1 example for each trace specified
+in `names`. If `names` is not set, all the traces will be sampled.
+"""
+SingleSampler(; kw...) = SingleSampler{nothing}(; kw...)
+SingleSampler{names}(; rng=Random.GLOBAL_RNG) where {names} = SingleSampler{names}(rng)
+
+StatsBase.sample(s::SingleSampler{nothing}, t::AbstractTraces) = StatsBase.sample(s, t, keys(t))
+StatsBase.sample(s::SingleSampler{names}, t::AbstractTraces) where {names} = StatsBase.sample(s, t, names)
+
+function StatsBase.sample(s::SingleSampler, t::AbstractTraces, names, weights = StatsBase.UnitWeights{Int}(length(t)))
+    idx = StatsBase.sample(s.rng, 1:length(t), weights)
+    NamedTuple{names}(map(x -> t[Val(x)][idx], names))
+end
+
+function StatsBase.sample(s::SingleSampler, e::EpisodesBuffer, names)
+    StatsBase.sample(s, e.traces, names, StatsBase.FrequencyWeights(e.sampleable_inds[1:length(e.traces)]))
+end
+
+# !!! avoid iterating an empty trajectory
+function Base.iterate(s::SampleGenerator{<:SingleSampler})
+    if length(s.traces) > 0
+        StatsBase.sample(s.sampler, s.traces), nothing
+    else
+        nothing
+    end
+end
+
+#####
+
+StatsBase.sample(s::SingleSampler{nothing}, t::CircularPrioritizedTraces) = StatsBase.sample(s, t, keys(t.traces))
+
+function StatsBase.sample(s::SingleSampler, e::EpisodesBuffer{<:Any, <:Any, <:CircularPrioritizedTraces}, names)
+    t = e.traces
+    p = collect(deepcopy(t.priorities))
+    w = StatsBase.FrequencyWeights(p)
+    w .*= e.sampleable_inds[1:length(t)]
+    idx = StatsBase.sample(s.rng, eachindex(w), w)
+    NamedTuple{(:key, :priority, names...)}((t.keys[idx], p[idx], map(x -> t.traces[Val(x)][idx], names)...))
+end
+
+function StatsBase.sample(s::SingleSampler, t::CircularPrioritizedTraces, names)
+    idx, priority = rand(s.rng, t.priorities)
+    NamedTuple{(:key, :priority, names...)}((t.keys[idx], priority, map(x -> t.traces[Val(x)][idx], names)...))
+end
 
 #####
 # BatchSampler
